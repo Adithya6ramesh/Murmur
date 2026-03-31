@@ -1,0 +1,301 @@
+/* Calendar Styles */
+#home-page {
+  background: 
+    linear-gradient(135deg, rgba(102, 126, 234, 0.7) 0%, rgba(118, 75, 162, 0.7) 100%),
+    url('../../assets/2nd.png') center/cover no-repeat;
+  background-blend-mode: overlay;
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+#home-page .glass-container {
+  max-width: min(600px, 100%);
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.calendar-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--spacing-xl);
+  gap: var(--spacing-md);
+  flex-wrap: wrap;
+  min-width: 0;
+  width: 100%;
+}
+
+.calendar-header h2 {
+  margin: 0;
+  font-size: clamp(1.35rem, 5vw, 2.5rem);
+  font-weight: 600;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-blue) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  max-width: 100%;
+  min-width: 0;
+  word-wrap: break-word;
+  overflow-wrap: break-word;
+}
+
+.month-nav {
+  display: flex;
+  align-items: center;
+  gap: clamp(0.35rem, 2vw, var(--spacing-md));
+  flex-shrink: 0;
+  min-width: 0;
+}
+
+.nav-btn {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--glass-border);
+  border-radius: 50%;
+  width: 50px;
+  height: 50px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text-primary);
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  font-size: 1.2rem;
+}
+
+.nav-btn:hover {
+  background: rgba(255, 255, 255, 0.2);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(31, 38, 135, 0.3);
+}
+
+.current-month {
+  font-size: clamp(0.85rem, 3.5vw, 1.3rem);
+  font-weight: 500;
+  color: var(--text-primary);
+  min-width: 0;
+  flex: 1 1 auto;
+  text-align: center;
+}
+
+.calendar-grid {
+  display: grid;
+  /* minmax(0,1fr) lets columns shrink on narrow screens (avoids 400px+ min width from aspect-ratio + min-height) */
+  grid-template-columns: repeat(7, minmax(0, 1fr));
+  gap: clamp(2px, 1.5vw, var(--spacing-sm));
+  margin-top: var(--spacing-lg);
+  width: 100%;
+  min-width: 0;
+  animation: calendarFadeIn 0.6s ease-out;
+}
+
+.calendar-day {
+  aspect-ratio: 1;
+  background: transparent;
+  border: none;
+  border-radius: var(--radius-md);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: all var(--transition-normal);
+  position: relative;
+  min-width: 0;
+  min-height: 0;
+}
+
+.calendar-day:hover {
+  background: rgba(255, 255, 255, 0.1);
+  transform: translateY(-2px);
+  border-radius: var(--radius-md);
+}
+
+.calendar-day.other-month {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.calendar-day.other-month:hover {
+  background: transparent;
+  transform: none;
+}
+
+.calendar-day.today {
+  background: linear-gradient(135deg, #00d4ff 0%, #8b5cf6 100%);
+  border-radius: 50%;
+  color: var(--text-primary);
+  font-weight: 600;
+  animation: pulse 2s ease-in-out infinite;
+  /* Grid cell is already square; fill it — fixed px widths caused horizontal overflow */
+  width: 100%;
+  height: 100%;
+  max-width: 100%;
+  max-height: 100%;
+  margin: 0;
+  align-self: stretch;
+  justify-self: stretch;
+}
+
+.calendar-day.today::after {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 6px;
+  height: 6px;
+  background: #00ff88;
+  border-radius: 50%;
+  box-shadow: 0 0 8px #00ff88;
+  animation: todayDot 2s ease-in-out infinite;
+}
+
+.calendar-day.has-entry {
+  position: relative;
+}
+
+.calendar-day.has-entry::before {
+  content: '';
+  position: absolute;
+  bottom: -8px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 8px;
+  height: 8px;
+  background: #00ff88;
+  border-radius: 50%;
+  box-shadow: 0 0 10px #00ff88;
+  animation: journalDot 2s ease-in-out infinite;
+}
+
+.day-number {
+  font-size: clamp(0.7rem, 3.2vw, 1.1rem);
+  font-weight: 500;
+  color: var(--text-primary);
+  margin-bottom: 2px;
+}
+
+.day-label {
+  font-size: 0.7rem;
+  color: var(--text-muted);
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+/* Calendar Header Days */
+.calendar-header-days {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: var(--spacing-sm);
+  margin-bottom: var(--spacing-md);
+}
+
+.calendar-header-day {
+  text-align: center;
+  font-size: clamp(0.65rem, 3.5vw, 0.9rem);
+  font-weight: 600;
+  color: var(--text-secondary);
+  text-transform: none;
+  letter-spacing: 0;
+  padding: 2px;
+  min-width: 0;
+}
+
+/* Animations */
+@keyframes todayDot {
+  0%, 100% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 0.7;
+    transform: translateX(-50%) scale(1.2);
+  }
+}
+
+@keyframes journalDot {
+  0%, 100% {
+    opacity: 0.8;
+    transform: translateX(-50%) scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.1);
+  }
+}
+
+@keyframes calendarFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  /* Center the calendar card vertically; avoid full-height stretch */
+  #home-page {
+    align-items: center;
+    justify-content: center;
+  }
+
+  #home-page .glass-container {
+    width: 100%;
+    max-width: min(440px, calc(100% - 2rem));
+    margin-left: auto;
+    margin-right: auto;
+    flex: 0 1 auto;
+    align-self: center;
+  }
+
+  .calendar-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    text-align: center;
+  }
+
+  .nav-btn {
+    width: 40px;
+    height: 40px;
+    font-size: 1rem;
+  }
+}
+
+@media (max-width: 480px) {
+  /* Phone: compact widget in the middle, not edge-to-edge / full-height */
+  #home-page {
+    align-items: center;
+    justify-content: center;
+  }
+
+  #home-page .glass-container {
+    width: 100%;
+    max-width: min(380px, calc(100% - 1.25rem));
+    padding: var(--spacing-md);
+    margin-left: auto;
+    margin-right: auto;
+    flex: 0 1 auto;
+    align-self: center;
+  }
+
+  .calendar-grid {
+    gap: 2px;
+  }
+
+  .nav-btn {
+    width: 36px;
+    height: 36px;
+    font-size: 0.9rem;
+  }
+
+  .day-label {
+    font-size: 0.6rem;
+  }
+}

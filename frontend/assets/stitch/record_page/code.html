@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+
+<html class="dark" lang="en"><head>
+<meta charset="utf-8"/>
+<meta content="width=device-width, initial-scale=1.0" name="viewport"/>
+<title>Murmur - Record</title>
+<script src="https://cdn.tailwindcss.com?plugins=forms,container-queries"></script>
+<link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;500;600;700&amp;family=Manrope:wght@300;400;500;600;700&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<link href="https://fonts.googleapis.com/css2?family=Material+Symbols+Outlined:wght,FILL@100..700,0..1&amp;display=swap" rel="stylesheet"/>
+<script id="tailwind-config">
+      tailwind.config = {
+        darkMode: "class",
+        theme: {
+          extend: {
+            colors: {
+              "on-tertiary-fixed": "#3c0800",
+              "on-secondary-fixed": "#131d20",
+              "secondary-fixed": "#dae4e8",
+              "on-tertiary-fixed-variant": "#7c2e19",
+              "surface": "#121414",
+              "tertiary-fixed": "#ffdbd2",
+              "on-primary-container": "#1b3b35",
+              "on-primary-fixed": "#00201b",
+              "tertiary": "#ffb4a1",
+              "surface-dim": "#121414",
+              "on-surface": "#e2e2e2",
+              "secondary": "#bec8cc",
+              "on-primary-fixed-variant": "#2d4c46",
+              "error-container": "#93000a",
+              "tertiary-container": "#ea8266",
+              "surface-bright": "#383939",
+              "primary-container": "#84a59d",
+              "surface-container-lowest": "#0d0f0f",
+              "surface-container-high": "#282a2a",
+              "error": "#ffb4ab",
+              "surface-container": "#1e2020",
+              "primary": "#accec5",
+              "on-tertiary": "#5d1805",
+              "primary-fixed-dim": "#accec5",
+              "secondary-fixed-dim": "#bec8cc",
+              "tertiary-fixed-dim": "#ffb4a1",
+              "on-secondary-fixed-variant": "#3e484c",
+              "secondary-container": "#3e484c",
+              "on-surface-variant": "#c1c8c5",
+              "surface-tint": "#accec5",
+              "surface-variant": "#333535",
+              "on-error": "#690005",
+              "on-primary": "#163630",
+              "on-tertiary-container": "#651d09",
+              "inverse-primary": "#45645e",
+              "inverse-on-surface": "#2f3131",
+              "outline-variant": "#414846",
+              "outline": "#8b9290",
+              "on-error-container": "#ffdad6",
+              "on-secondary-container": "#acb7ba",
+              "background": "#121414",
+              "surface-container-low": "#1a1c1c",
+              "on-secondary": "#283235",
+              "inverse-surface": "#e2e2e2",
+              "primary-fixed": "#c7eae1",
+              "on-background": "#e2e2e2",
+              "surface-container-highest": "#333535"
+            },
+            fontFamily: {
+              "headline": ["Space Grotesk"],
+              "body": ["Manrope"],
+              "label": ["Manrope"]
+            },
+            borderRadius: {"DEFAULT": "1rem", "lg": "2rem", "xl": "3rem", "full": "9999px"},
+          },
+        },
+      }
+    </script>
+<style>.material-symbols-outlined {
+    font-variation-settings: "FILL" 0, "wght" 400, "GRAD" 0, "opsz" 24
+    }
+.bg-noise {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuCZtv7BrKJfK9yTej4a7LB_KUFlvrxNtO-OTQudS5cQOlle_RglLvk2GWjAw9I9Yv-QImmLXVxul-RpuRACZPUzZE71AD9sj83d5-H-pked616NqKyxv1cX0owbbtPwDoDgo33_ekHRMULQIm7Zan7Q3PPdlTwStrbAEYzNxCENLBplfOOkYQ9UmulAbWAOwkQzRlRx20Z_KGm2SNF3ElZQI-ibA8H8dZlhXpUKkdAiBA8hUQEp4KLAkj_GiISIytePXECs_WMkCYQ);
+    opacity: 0.03
+    }
+.glass-panel {
+    background: rgba(26, 28, 28, 0.7);
+    backdrop-filter: blur(20px)
+    }</style>
+</head>
+<body class="bg-background text-on-background font-body selection:bg-primary selection:text-on-primary min-h-screen flex flex-col">
+<!-- TopAppBar -->
+<header class="fixed top-0 w-full z-50 flex justify-between items-center px-6 py-4 bg-[#121414] dark:bg-[#121414]">
+<div class="text-2xl font-bold text-[#accec5] tracking-tighter font-headline">Murmur</div>
+<div class="flex items-center gap-4">
+<button class="text-[#8e918f] hover:text-[#accec5] transition-colors duration-300 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">insert_chart</span>
+</button>
+<button class="text-[#8e918f] hover:text-[#accec5] transition-colors duration-300 active:scale-90 transition-transform">
+<span class="material-symbols-outlined">account_circle</span>
+</button>
+</div>
+</header>
+<!-- SideNavBar (Desktop) -->
+<nav class="hidden md:flex flex-col h-full py-8 fixed left-0 w-64 bg-[#121414] dark:bg-[#121414] z-40 border-r border-surface-variant/20">
+<div class="px-8 mb-12">
+<h1 class="text-xl font-bold text-[#accec5] font-headline">Murmur</h1>
+<p class="text-xs text-[#8e918f] font-medium mt-1">Your Digital Sanctuary</p>
+</div>
+<div class="flex flex-col gap-2">
+<a class="flex items-center gap-4 py-3 text-[#8e918f] pl-4 hover:bg-[#1a1c1c] hover:text-[#accec5] transition-all font-headline font-medium text-sm" href="#">
+<span class="material-symbols-outlined">mic_none</span>
+<span>Journal</span>
+</a>
+<a class="flex items-center gap-4 py-3 text-[#8e918f] pl-4 hover:bg-[#1a1c1c] hover:text-[#accec5] transition-all font-headline font-medium text-sm" href="#">
+<span class="material-symbols-outlined">analytics</span>
+<span>Insights</span>
+</a>
+<a class="flex items-center gap-4 py-3 text-[#accec5] font-bold border-l-4 border-[#accec5] pl-4 bg-[#1a1c1c] transition-all font-headline text-sm" href="#">
+<span class="material-symbols-outlined">history_edu</span>
+<span>Record</span>
+</a>
+<a class="flex items-center gap-4 py-3 text-[#8e918f] pl-4 hover:bg-[#1a1c1c] hover:text-[#accec5] transition-all font-headline font-medium text-sm" href="#">
+<span class="material-symbols-outlined">settings</span>
+<span>Settings</span>
+</a>
+</div>
+</nav>
+<!-- Main Content Canvas -->
+<main class="flex-grow flex flex-col items-center justify-center px-6 pt-20 pb-32 md:pl-64">
+<div class="absolute inset-0 bg-noise pointer-events-none"></div>
+<div class="w-full max-w-2xl flex flex-col items-center text-center space-y-12 z-10">
+<!-- Hero Heading -->
+<div class="space-y-4">
+<h2 class="text-6xl md:text-8xl font-headline font-bold tracking-tighter text-on-surface">
+                    talk to me
+                </h2>
+<p class="text-on-surface-variant font-medium tracking-wide body-sm max-w-xs mx-auto opacity-60">
+                    Release your thoughts into the digital ether.
+                </p>
+</div>
+<!-- Recording Interface -->
+<div class="relative flex flex-col items-center justify-center w-full">
+<!-- Pulse Rings (Decorative) -->
+<div class="absolute w-64 h-64 bg-primary/5 rounded-full blur-3xl animate-pulse"></div>
+<div class="absolute w-48 h-48 bg-primary/10 rounded-full blur-2xl"></div>
+<!-- Main Record Button -->
+<button class="group relative w-32 h-32 rounded-full bg-primary-container flex items-center justify-center shadow-[0_0_50px_rgba(172,206,197,0.3)] hover:scale-105 active:scale-95 transition-all duration-500 ease-out z-20 overflow-hidden">
+<div class="absolute inset-0 bg-gradient-to-tr from-primary to-transparent opacity-40"></div>
+<span class="material-symbols-outlined text-on-primary-container text-5xl group-active:scale-90 transition-transform">mic</span>
+</button>
+<!-- Waveform Mockup (Visible during state) -->
+<div class="mt-16 w-full h-16 flex items-center justify-center gap-1.5 overflow-hidden">
+<div class="w-1 h-4 bg-primary/20 rounded-full"></div>
+<div class="w-1 h-8 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-12 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-6 bg-primary/80 rounded-full"></div>
+<div class="w-1 h-10 bg-primary rounded-full"></div>
+<div class="w-1 h-14 bg-primary-container rounded-full shadow-[0_0_10px_rgba(172,206,197,0.5)]"></div>
+<div class="w-1 h-8 bg-primary rounded-full"></div>
+<div class="w-1 h-12 bg-primary/80 rounded-full"></div>
+<div class="w-1 h-6 bg-primary/60 rounded-full"></div>
+<div class="w-1 h-10 bg-primary/40 rounded-full"></div>
+<div class="w-1 h-4 bg-primary/20 rounded-full"></div>
+</div>
+</div>
+<!-- Focus Card (Post-Recording Mockup - Hidden initially in logic) -->
+<div class="w-full bg-surface-container-low rounded-lg p-6 shadow-2xl border border-outline-variant/10 relative overflow-hidden hidden">
+<div class="absolute top-0 right-0 p-4">
+<span class="text-[10px] font-bold tracking-widest text-primary/50 uppercase">Transcribing...</span>
+</div>
+<textarea class="w-full bg-transparent border-none focus:ring-0 text-on-surface placeholder:text-on-surface-variant/40 font-body text-lg leading-relaxed min-h-[160px] resize-none" placeholder="Your reflection will appear here..."></textarea>
+<div class="flex items-center justify-between mt-4 pt-4 border-t border-outline-variant/10">
+<div class="flex gap-2">
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Calm</span>
+<span class="bg-surface-container-high px-3 py-1 rounded-full text-[10px] text-on-surface-variant font-bold uppercase tracking-wider">Evening</span>
+</div>
+<button class="w-12 h-12 bg-primary text-on-primary rounded-full flex items-center justify-center hover:bg-primary-fixed-dim transition-colors active:scale-90 shadow-lg">
+<span class="material-symbols-outlined">arrow_forward</span>
+</button>
+</div>
+</div>
+</div>
+<!-- Ambient Graphic Element -->
+<div class="absolute bottom-10 right-10 w-64 h-64 opacity-20 hidden md:block">
+<img class="w-full h-full object-contain mix-blend-screen" data-alt="abstract organic shape with soft flowing curves in sage green and charcoal tones against a dark background" src="https://lh3.googleusercontent.com/aida-public/AB6AXuDdkg0l8kAHlkY9K0uWhSfc02FyVP44tpJ1Nm2Dvb3_lU_UoWGj8z9p3tGIsfoh1puyYVcKoudWSkbepFOoXVG3_dhyPa14E2hx7wmFvJ6QnJG6AUa5cYCmjaEUU7mTLTIijxvRNk7DE_HBPHqNbswKSl-bAZ6J5MWGFdk4BSlMF7U9p6QqH_ULgzXyPJEqJeDFU6nYkvg_TrZ0aUQiHiQQZWZsdLwcmKsniI-WWy-n49Rq5tMf5jL6qJnPrwNIAdYP1rG3h8Hor2I"/>
+</div>
+</main>
+<!-- BottomNavBar (Mobile Only) -->
+<nav class="fixed bottom-0 left-0 w-full z-50 flex justify-around items-center px-4 pb-6 pt-3 md:hidden bg-[#1a1c1c]/70 backdrop-blur-xl shadow-[0_-4px_24px_rgba(0,0,0,0.4)] rounded-t-[2rem]">
+<a class="flex flex-col items-center justify-center text-[#8e918f] px-4 py-2 hover:text-[#accec5] transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined">home</span>
+<span class="font-['Manrope'] text-[10px] font-medium tracking-wide">Home</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#accec5] bg-[#accec5]/10 rounded-2xl px-4 py-2 active:scale-90 transition-transform duration-300 ease-in-out" href="#">
+<span class="material-symbols-outlined" style="font-variation-settings: 'FILL' 1;">mic</span>
+<span class="font-['Manrope'] text-[10px] font-bold tracking-wide">Record</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#8e918f] px-4 py-2 hover:text-[#accec5] transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined">bar_chart</span>
+<span class="font-['Manrope'] text-[10px] font-medium tracking-wide">Insights</span>
+</a>
+<a class="flex flex-col items-center justify-center text-[#8e918f] px-4 py-2 hover:text-[#accec5] transition-colors active:scale-90" href="#">
+<span class="material-symbols-outlined">person</span>
+<span class="font-['Manrope'] text-[10px] font-medium tracking-wide">Profile</span>
+</a>
+</nav>
+</body></html>

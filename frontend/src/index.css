@@ -1,0 +1,132 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  html {
+    @apply scroll-smooth;
+  }
+
+  body {
+    background-color: #121414;
+    background-image: radial-gradient(circle at 50% -20%, #1b3b35 0%, #121414 70%);
+    min-height: 100vh;
+  }
+}
+
+@layer components {
+  .material-symbols-outlined {
+    font-variation-settings: 'FILL' 0, 'wght' 400, 'GRAD' 0, 'opsz' 24;
+  }
+
+  .glass-card {
+    @apply rounded-xl border border-outline-variant/10;
+    background: rgba(30, 32, 32, 0.7);
+    backdrop-filter: blur(20px);
+  }
+
+  .glass-panel {
+    @apply rounded-xl;
+    background: rgba(26, 28, 28, 0.7);
+    backdrop-filter: blur(20px);
+  }
+
+  .grain-overlay {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuAFEgvur3U71L23ib2wXVDC9WevUz5vWvXuv_01F-WbWiMWIZ2epjJ4jVhlum2h0LoWAQDNbF77tXq7ibPiFjiSfjLEakol3A_85-wo9_BEyLcmWD64u9Z4phVwufyUo8RkS3RnvmuICvkNwBoi1v2VPhqTKS4-miqy-RF6d7gw0e-czMmq1-VYxMmjSE8Z9cI9Vtrouvn4DlI63nlLJkU0NQbriLC949Zh73-kB-niQuMl1Oz7UcGg45i9lh90p-2a-UdnnmWz89E);
+    opacity: 0.03;
+    pointer-events: none;
+  }
+
+  .gradient-glow {
+    background: radial-gradient(circle at center, rgba(172, 206, 197, 0.08) 0%, transparent 70%);
+  }
+
+  .bg-noise {
+    background-image: url(https://lh3.googleusercontent.com/aida-public/AB6AXuCZtv7BrKJfK9yTej4a7LB_KUFlvrxNtO-OTQudS5cQOlle_RglLvk2GWjAw9I9Yv-QImmLXVxul-RpuRACZPUzZE71AD9sj83d5-H-pked616NqKyxv1cX0owbbtPwDoDgo33_ekHRMULQIm7Zan7Q3PPdlTwStrbAEYzNxCENLBplfOOkYQ9UmulAbWAOwkQzRlRx20Z_KGm2SNF3ElZQI-ibA8H8dZlhXpUKkdAiBA8hUQEp4KLAkj_GiISIytePXECs_WMkCYQ);
+    opacity: 0.03;
+  }
+
+  .mood-gradient-bg {
+    background:
+      radial-gradient(circle at 20% 30%, rgba(172, 206, 197, 0.15) 0%, transparent 50%),
+      radial-gradient(circle at 80% 70%, rgba(255, 180, 161, 0.1) 0%, transparent 50%);
+  }
+}
+
+@keyframes splashSequence {
+  0% {
+    opacity: 0;
+    transform: scale(0.98);
+  }
+  15% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  85% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(1.02);
+  }
+}
+
+.animate-splash {
+  animation: splashSequence 4s ease-in-out forwards;
+}
+
+@keyframes drawLine {
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes profile-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.92) translateY(8px);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.02) translateY(0);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1) translateY(0);
+  }
+}
+
+.animate-profile-pop {
+  animation: profile-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+/* Stitch loading: organic analyzing orb (see assets/stitch/loading/code.html) */
+@keyframes morph-orb {
+  0%,
+  100% {
+    border-radius: 42% 58% 70% 30% / 45% 45% 55% 55%;
+    transform: scale(1) rotate(0deg);
+  }
+  33% {
+    border-radius: 70% 30% 46% 54% / 30% 29% 71% 70%;
+    transform: scale(1.05) rotate(120deg);
+  }
+  66% {
+    border-radius: 100% 60% 60% 100% / 100% 100% 60% 60%;
+    transform: scale(0.95) rotate(240deg);
+  }
+}
+
+.orb-blur-analyze {
+  filter: blur(80px);
+}
+
+.organic-pulse-analyze {
+  animation: morph-orb 12s ease-in-out infinite alternate;
+  background: radial-gradient(circle at 30% 30%, #84a59d, #45645e);
+}
+
+.glow-layer-analyze {
+  animation: morph-orb 15s ease-in-out infinite alternate-reverse;
+}

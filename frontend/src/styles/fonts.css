@@ -1,0 +1,41 @@
+/* Custom Fonts */
+
+/* If you have Tiempos Text font files, uncomment and update paths below */
+/*
+@font-face {
+  font-family: 'Tiempos Text';
+  src: url('../../assets/fonts/TiemposText-Regular.woff2') format('woff2'),
+       url('../../assets/fonts/TiemposText-Regular.woff') format('woff');
+  font-weight: 400;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tiempos Text';
+  src: url('../../assets/fonts/TiemposText-Medium.woff2') format('woff2'),
+       url('../../assets/fonts/TiemposText-Medium.woff') format('woff');
+  font-weight: 500;
+  font-style: normal;
+  font-display: swap;
+}
+
+@font-face {
+  font-family: 'Tiempos Text';
+  src: url('../../assets/fonts/TiemposText-Bold.woff2') format('woff2'),
+       url('../../assets/fonts/TiemposText-Bold.woff') format('woff');
+  font-weight: 700;
+  font-style: normal;
+  font-display: swap;
+}
+*/
+
+/* Fallback fonts that closely match Tiempos Text */
+:root {
+  --font-primary: 'Crimson Text', 'Times New Roman', 'Georgia', serif;
+  --font-secondary: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  --font-title: 'Space Grotesk', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* If you have Tiempos Text font files, change --font-primary to: */
+/* --font-primary: 'Tiempos Text', 'Crimson Text', 'Times New Roman', 'Georgia', serif; */

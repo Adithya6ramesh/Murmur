@@ -1,0 +1,88 @@
+# Murmur AI Voice Journaling App - Git Ignore
+
+# Environment variables
+.env
+.env.local
+.env.production
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+# Python build layout at repo root only (do not use bare "lib/" — it ignores frontend/src/lib/)
+/lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# Virtual environments
+venv/
+env/
+ENV/
+env.bak/
+venv.bak/
+.venv/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Upload files
+uploads/
+temp/
+tmp/
+
+# Whisper models and binaries
+models/
+whisper.cpp/
+*.bin
+
+# Testing
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Flask
+instance/
+.webassets-cache
+
+# Backup files
+*.bak
+*.backup
+
+# Node / frontend
+node_modules/
+frontend/node_modules/
+
+# Cursor / local
+.cursor/

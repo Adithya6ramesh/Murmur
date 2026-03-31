@@ -1,0 +1,269 @@
+/* Recording Interface Styles */
+#recording-page {
+  background: 
+    linear-gradient(135deg, rgba(44, 62, 80, 0.7) 0%, rgba(52, 152, 219, 0.7) 100%),
+    url('../../assets/3rd.png') center/cover no-repeat;
+  background-blend-mode: overlay;
+  overflow-x: clip;
+  align-items: center;
+  justify-content: center;
+}
+
+.recording-container {
+  text-align: center;
+  width: 100%;
+  max-width: min(500px, 100%);
+  min-width: 0;
+  padding: 0 clamp(0.25rem, 2vw, 0.5rem);
+  box-sizing: border-box;
+}
+
+.recording-prompt {
+  margin-bottom: var(--spacing-xl);
+}
+
+.talk-prompt {
+  font-size: clamp(1.35rem, 5.5vw, 2.5rem);
+  font-weight: 300;
+  color: var(--text-muted);
+  margin: 0;
+  opacity: 0.7;
+  animation: promptPulse 3s ease-in-out infinite;
+  line-height: 1.25;
+  padding: 0 var(--spacing-xs);
+  word-wrap: break-word;
+}
+
+.recording-controls {
+  margin-bottom: var(--spacing-xl);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.record-btn {
+  width: clamp(5.5rem, 28vw, 7.5rem);
+  height: clamp(5.5rem, 28vw, 7.5rem);
+  min-width: 5rem;
+  min-height: 5rem;
+  border-radius: 50%;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 2px solid var(--glass-border);
+  color: var(--text-primary);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: clamp(1.75rem, 8vw, 2.5rem);
+  transition: all var(--transition-normal);
+  position: relative;
+  overflow: hidden;
+}
+
+.record-btn::before {
+  content: '';
+  position: absolute;
+  top: -2px;
+  left: -2px;
+  right: -2px;
+  bottom: -2px;
+  background: linear-gradient(45deg, var(--accent-blue), var(--accent-purple), var(--accent-pink), var(--accent-blue));
+  border-radius: 50%;
+  z-index: -1;
+  opacity: 0;
+  transition: opacity var(--transition-normal);
+}
+
+.record-btn:hover {
+  transform: scale(1.05);
+  box-shadow: 0 0 40px rgba(100, 200, 255, 0.4);
+}
+
+.record-btn:hover::before {
+  opacity: 1;
+  animation: borderRotate 2s linear infinite;
+}
+
+.record-btn.recording {
+  background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+  animation: recordingPulse 1s ease-in-out infinite;
+  box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+}
+
+.record-btn.recording::before {
+  opacity: 1;
+  background: linear-gradient(45deg, #ef4444, #dc2626, #b91c1c, #ef4444);
+}
+
+/* Audio Visualizer */
+.audio-visualizer {
+  margin-bottom: var(--spacing-lg);
+  display: flex;
+  justify-content: center;
+}
+
+.wave-container {
+  display: flex;
+  align-items: end;
+  gap: 4px;
+  height: 60px;
+}
+
+.wave-bar {
+  width: 6px;
+  background: linear-gradient(to top, var(--accent-blue), var(--accent-purple));
+  border-radius: 3px;
+  animation: waveAnimation 1s ease-in-out infinite;
+  min-height: 10px;
+}
+
+.wave-bar:nth-child(1) { animation-delay: 0s; }
+.wave-bar:nth-child(2) { animation-delay: 0.1s; }
+.wave-bar:nth-child(3) { animation-delay: 0.2s; }
+.wave-bar:nth-child(4) { animation-delay: 0.3s; }
+.wave-bar:nth-child(5) { animation-delay: 0.4s; }
+.wave-bar:nth-child(6) { animation-delay: 0.3s; }
+.wave-bar:nth-child(7) { animation-delay: 0.2s; }
+.wave-bar:nth-child(8) { animation-delay: 0.1s; }
+
+/* Recording Status */
+.recording-status {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+  font-size: 1.1rem;
+  color: var(--text-secondary);
+}
+
+.recording-dot {
+  width: 12px;
+  height: 12px;
+  background: #ef4444;
+  border-radius: 50%;
+  animation: recordingDot 1s ease-in-out infinite;
+}
+
+/* Animations */
+@keyframes promptPulse {
+  0%, 100% {
+    opacity: 0.7;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+@keyframes borderRotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes recordingPulse {
+  0%, 100% {
+    transform: scale(1);
+    box-shadow: 0 0 30px rgba(239, 68, 68, 0.5);
+  }
+  50% {
+    transform: scale(1.05);
+    box-shadow: 0 0 40px rgba(239, 68, 68, 0.7);
+  }
+}
+
+@keyframes waveAnimation {
+  0%, 100% {
+    height: 10px;
+  }
+  25% {
+    height: 30px;
+  }
+  50% {
+    height: 50px;
+  }
+  75% {
+    height: 20px;
+  }
+}
+
+@keyframes recordingDot {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.5;
+    transform: scale(1.2);
+  }
+}
+
+@keyframes recordingInterfaceFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.recording-container {
+  animation: recordingInterfaceFadeIn 0.6s ease-out;
+}
+
+/* Responsive Design — clamp() handles most sizes; tune extremes here */
+@media (max-width: 768px) {
+  .recording-prompt {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .wave-container {
+    height: clamp(40px, 12vw, 50px);
+  }
+
+  .wave-bar {
+    width: clamp(3px, 1.2vw, 5px);
+  }
+}
+
+@media (max-width: 480px) {
+  .recording-controls {
+    margin-bottom: var(--spacing-md);
+  }
+
+  .wave-container {
+    max-width: 100%;
+    flex-wrap: nowrap;
+    justify-content: center;
+  }
+
+  .recording-status {
+    font-size: clamp(0.9rem, 3.5vw, 1.1rem);
+  }
+}
+
+@media (max-height: 480px) and (orientation: landscape) {
+  #recording-page {
+    align-items: flex-start;
+    padding-top: max(var(--spacing-sm), env(safe-area-inset-top, 0px));
+  }
+
+  .recording-prompt {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .recording-controls {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .record-btn {
+    width: clamp(4.5rem, 22vh, 6rem);
+    height: clamp(4.5rem, 22vh, 6rem);
+  }
+}

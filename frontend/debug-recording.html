@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Murmur Recording Debug</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+            background: #f0f0f0;
+        }
+        .debug-section {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .status {
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 4px;
+        }
+        .success { background: #d4edda; color: #155724; }
+        .error { background: #f8d7da; color: #721c24; }
+        .warning { background: #fff3cd; color: #856404; }
+        .info { background: #d1ecf1; color: #0c5460; }
+        button {
+            background: #007bff;
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 4px;
+            cursor: pointer;
+            margin: 5px;
+        }
+        button:hover { background: #0056b3; }
+        button:disabled { background: #6c757d; cursor: not-allowed; }
+        #audioPlayback { margin: 10px 0; }
+        .log {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 10px;
+            max-height: 200px;
+            overflow-y: auto;
+            font-family: monospace;
+            font-size: 12px;
+        }
+    </style>
+</head>
+<body>
+    <h1>🎙️ Murmur Recording Debug Tool</h1>
+    
+    <div class="debug-section">
+        <h2>1. Browser Compatibility Check</h2>
+        <div id="browserCheck"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>2. Backend API Check</h2>
+        <button onclick="checkBackendHealth()">Check Backend Health</button>
+        <button onclick="checkBackendAPI()">Check API Info</button>
+        <div id="backendStatus"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>3. Microphone Test</h2>
+        <button onclick="testMicrophone()">Test Microphone Access</button>
+        <div id="microphoneStatus"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>4. Recording Test</h2>
+        <button id="recordBtn" onclick="toggleRecording()">🎤 Start Recording</button>
+        <button onclick="playRecording()" disabled id="playBtn">▶️ Play Recording</button>
+        <div id="recordingStatus"></div>
+        <audio id="audioPlayback" controls style="display: none;"></audio>
+    </div>
+    
+    <div class="debug-section">
+        <h2>5. Speech-to-Text Test</h2>
+        <button onclick="testTranscription()" disabled id="transcribeBtn">📝 Test Transcription</button>
+        <div id="transcriptionStatus"></div>
+    </div>
+    
+    <div class="debug-section">
+        <h2>6. Debug Log</h2>
+        <button onclick="clearLog()">Clear Log</button>
+        <div id="debugLog" class="log"></div>
+    </div>
+
+    <script>
+        let mediaRecorder = null;
+        let audioChunks = [];
+        let isRecording = false;
+        let audioBlob = null;
+
+        function log(message, type = 'info') {
+            const timestamp = new Date().toLocaleTimeString();
+            const logDiv = document.getElementById('debugLog');
+            const className = type === 'error' ? 'error' : type === 'success' ? 'success' : 'info';
+            logDiv.innerHTML += `<div class="${className}">[${timestamp}] ${message}</div>`;
+            logDiv.scrollTop = logDiv.scrollHeight;
+            console.log(`[${timestamp}] ${message}`);
+        }
+
+        function clearLog() {
+            document.getElementById('debugLog').innerHTML = '';
+        }
+
+        function showStatus(elementId, message, type = 'info') {
+            const element = document.getElementById(elementId);
+            element.innerHTML = `<div class="status ${type}">${message}</div>`;
+        }
+
+        // 1. Browser Compatibility Check
+        function checkBrowserCompatibility() {
+            const checks = [
+                { name: 'MediaRecorder API', supported: !!window.MediaRecorder },
+                { name: 'getUserMedia API', supported: !!(navigator.mediaDevices && navigator.mediaDevices.getUserMedia) },
+                { name: 'Fetch API', supported: !!window.fetch },
+                { name: 'Web Audio API', supported: !!(window.AudioContext || window.webkitAudioContext) },
+                { name: 'Blob API', supported: !!window.Blob },
+                { name: 'FormData API', supported: !!window.FormData }
+            ];
+
+            let html = '';
+            let allSupported = true;
+
+            checks.forEach(check => {
+                const status = check.supported ? 'success' : 'error';
+                const icon = check.supported ? '✅' : '❌';
+                html += `<div class="status ${status}">${icon} ${check.name}: ${check.supported ? 'Supported' : 'Not Supported'}</div>`;
+                if (!check.supported) allSupported = false;
+            });
+
+            document.getElementById('browserCheck').innerHTML = html;
+            
+            if (allSupported) {
+                log('Browser compatibility check passed', 'success');
+            } else {
+                log('Browser compatibility issues detected', 'error');
+            }
+        }
+
+        // 2. Backend API Check
+        async function checkBackendHealth() {
+            try {
+                log('Checking backend health...');
+                const response = await fetch('http://127.0.0.1:5000/api/v1/health');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus('backendStatus', `✅ Backend is running! Status: ${data.data.status}`, 'success');
+                    log('Backend health check passed', 'success');
+                } else {
+                    showStatus('backendStatus', `⚠️ Backend responded but with issues: ${data.message}`, 'warning');
+                    log(`Backend health check warning: ${data.message}`, 'warning');
+                }
+            } catch (error) {
+                showStatus('backendStatus', `❌ Cannot connect to backend: ${error.message}`, 'error');
+                log(`Backend health check failed: ${error.message}`, 'error');
+            }
+        }
+
+        async function checkBackendAPI() {
+            try {
+                log('Checking backend API info...');
+                const response = await fetch('http://127.0.0.1:5000/api/v1/info');
+                const data = await response.json();
+                
+                if (response.ok) {
+                    showStatus('backendStatus', `✅ API Info: ${data.data.name} v${data.data.version}`, 'success');
+                    log('Backend API info retrieved successfully', 'success');
+                } else {
+                    showStatus('backendStatus', `⚠️ API Info failed: ${data.message}`, 'warning');
+                    log(`Backend API info failed: ${data.message}`, 'warning');
+                }
+            } catch (error) {
+                showStatus('backendStatus', `❌ Cannot get API info: ${error.message}`, 'error');
+                log(`Backend API info failed: ${error.message}`, 'error');
+            }
+        }
+
+        // 3. Microphone Test
+        async function testMicrophone() {
+            try {
+                log('Testing microphone access...');
+                const stream = await navigator.mediaDevices.getUserMedia({ 
+                    audio: {
+                        echoCancellation: true,
+                        noiseSuppression: true,
+                        autoGainControl: true
+                    } 
+                });
+                
+                showStatus('microphoneStatus', '✅ Microphone access granted!', 'success');
+                log('Microphone access granted', 'success');
+                
+                // Stop the stream
+                stream.getTracks().forEach(track => track.stop());
+                
+            } catch (error) {
+                showStatus('microphoneStatus', `❌ Microphone access denied: ${error.message}`, 'error');
+                log(`Microphone access failed: ${error.message}`, 'error');
+            }
+        }
+
+        // 4. Recording Test
+        async function toggleRecording() {
+            const recordBtn = document.getElementById('recordBtn');
+            const playBtn = document.getElementById('playBtn');
+            const transcribeBtn = document.getElementById('transcribeBtn');
+
+            if (!isRecording) {
+                try {
+                    log('Starting recording...');
+                    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    
+                    mediaRecorder = new MediaRecorder(stream);
+                    audioChunks = [];
+                    
+                    mediaRecorder.ondataavailable = (event) => {
+                        if (event.data.size > 0) {
+                            audioChunks.push(event.data);
+                        }
+                    };
+                    
+                    mediaRecorder.onstop = () => {
+                        audioBlob = new Blob(audioChunks, { type: 'audio/wav' });
+                        const audioUrl = URL.createObjectURL(audioBlob);
+                        const audioElement = document.getElementById('audioPlayback');
+                        audioElement.src = audioUrl;
+                        audioElement.style.display = 'block';
+                        
+                        playBtn.disabled = false;
+                        transcribeBtn.disabled = false;
+                        
+                        log(`Recording stopped. Size: ${audioBlob.size} bytes`, 'success');
+                        showStatus('recordingStatus', `✅ Recording completed! Size: ${audioBlob.size} bytes`, 'success');
+                        
+                        // Stop all tracks
+                        stream.getTracks().forEach(track => track.stop());
+                    };
+                    
+                    mediaRecorder.start(100);
+                    isRecording = true;
+                    
+                    recordBtn.textContent = '⏹️ Stop Recording';
+                    recordBtn.style.background = '#dc3545';
+                    showStatus('recordingStatus', '🔴 Recording in progress...', 'info');
+                    log('Recording started successfully', 'success');
+                    
+                } catch (error) {
+                    showStatus('recordingStatus', `❌ Recording failed: ${error.message}`, 'error');
+                    log(`Recording failed: ${error.message}`, 'error');
+                }
+            } else {
+                mediaRecorder.stop();
+                isRecording = false;
+                
+                recordBtn.textContent = '🎤 Start Recording';
+                recordBtn.style.background = '#007bff';
+                log('Stopping recording...');
+            }
+        }
+
+        function playRecording() {
+            const audioElement = document.getElementById('audioPlayback');
+            audioElement.play();
+            log('Playing recorded audio');
+        }
+
+        // 5. Speech-to-Text Test
+        async function testTranscription() {
+            if (!audioBlob) {
+                log('No audio to transcribe', 'error');
+                return;
+            }
+
+            try {
+                log('Testing transcription...');
+                showStatus('transcriptionStatus', '⏳ Transcribing audio...', 'info');
+                
+                const formData = new FormData();
+                formData.append('audio', audioBlob, 'test-recording.wav');
+                
+                const response = await fetch('http://127.0.0.1:5000/api/v1/journal/transcript-only', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                if (response.ok) {
+                    const data = await response.json();
+                    const transcript = data.data.transcript;
+                    showStatus('transcriptionStatus', `✅ Transcription successful: "${transcript}"`, 'success');
+                    log(`Transcription successful: ${transcript}`, 'success');
+                } else {
+                    const errorData = await response.json();
+                    showStatus('transcriptionStatus', `❌ Transcription failed: ${errorData.message}`, 'error');
+                    log(`Transcription failed: ${errorData.message}`, 'error');
+                }
+                
+            } catch (error) {
+                showStatus('transcriptionStatus', `❌ Transcription error: ${error.message}`, 'error');
+                log(`Transcription error: ${error.message}`, 'error');
+            }
+        }
+
+        // Initialize on page load
+        window.onload = function() {
+            log('Debug tool initialized');
+            checkBrowserCompatibility();
+        };
+    </script>
+</body>
+</html>

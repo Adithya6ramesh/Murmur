@@ -1,0 +1,148 @@
+/* Splash Screen Styles */
+.splash-screen {
+  position: fixed;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100vh;
+  height: 100dvh;
+  min-height: 100svh;
+  background: url('../../assets/1.png') center/cover no-repeat;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 10000;
+  animation: splashFadeOut 3s ease-in-out forwards;
+  box-sizing: border-box;
+  padding: max(0px, env(safe-area-inset-top, 0px)) max(0px, env(safe-area-inset-right, 0px)) max(0px, env(safe-area-inset-bottom, 0px)) max(0px, env(safe-area-inset-left, 0px));
+  overflow-x: clip;
+}
+
+.splash-content {
+  text-align: center;
+  animation: splashContentFadeIn 1s ease-out;
+  width: 100%;
+  max-width: 100%;
+  padding: 0 clamp(0.75rem, 4vw, 2rem);
+  box-sizing: border-box;
+}
+
+.logo-container {
+  margin-bottom: var(--spacing-lg);
+}
+
+.diamond-icon {
+  font-size: clamp(1.75rem, 8vw, 3rem);
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+  display: block;
+  animation: diamondRotate 2s ease-in-out infinite;
+}
+
+.app-title {
+  font-family: var(--font-title, 'Space Grotesk', 'Inter', sans-serif);
+  font-size: clamp(2rem, 11vw, 4rem);
+  font-weight: 700;
+  letter-spacing: clamp(0.08em, 1.5vw, 0.2em);
+  color: var(--text-primary);
+  margin: 0;
+  text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+  animation: titleGlow 2s ease-in-out infinite alternate;
+  word-break: break-word;
+}
+
+.tagline {
+  font-family: var(--font-title, 'Space Grotesk', 'Inter', sans-serif);
+  font-size: clamp(0.75rem, 3.5vw, 1.2rem);
+  font-weight: 400;
+  letter-spacing: clamp(0.04em, 1vw, 0.1em);
+  color: var(--text-secondary);
+  margin: 0;
+  opacity: 0;
+  animation: taglineFadeIn 1s ease-out 0.5s forwards;
+  line-height: 1.4;
+}
+
+/* Animations */
+@keyframes splashFadeOut {
+  0%, 85% {
+    opacity: 1;
+    visibility: visible;
+  }
+  100% {
+    opacity: 0;
+    visibility: hidden;
+  }
+}
+
+@keyframes splashContentFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes diamondRotate {
+  0%, 100% {
+    transform: rotate(0deg) scale(1);
+  }
+  25% {
+    transform: rotate(90deg) scale(1.1);
+  }
+  50% {
+    transform: rotate(180deg) scale(1);
+  }
+  75% {
+    transform: rotate(270deg) scale(1.1);
+  }
+}
+
+@keyframes titleGlow {
+  from {
+    text-shadow: 0 0 30px rgba(255, 255, 255, 0.5);
+  }
+  to {
+    text-shadow: 0 0 40px rgba(255, 255, 255, 0.8), 0 0 60px rgba(100, 200, 255, 0.3);
+  }
+}
+
+@keyframes taglineFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Fine-tune on very narrow screens */
+@media (max-width: 360px) {
+  .splash-content {
+    padding: 0 var(--spacing-sm);
+  }
+}
+
+@media (max-height: 500px) and (orientation: landscape) {
+  .splash-screen {
+    align-items: flex-start;
+    padding-top: max(var(--spacing-md), env(safe-area-inset-top, 0px));
+  }
+
+  .logo-container {
+    margin-bottom: var(--spacing-sm);
+  }
+
+  .app-title {
+    font-size: clamp(1.5rem, 8vh, 2.5rem);
+  }
+
+  .tagline {
+    font-size: clamp(0.65rem, 2.5vh, 0.95rem);
+  }
+}

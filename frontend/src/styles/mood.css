@@ -1,0 +1,402 @@
+/* Mood Dashboard Styles */
+#mood-page {
+  background: 
+    linear-gradient(135deg, rgba(240, 147, 251, 0.7) 0%, rgba(245, 87, 108, 0.7) 100%),
+    url('../../assets/4th.png') center/cover no-repeat;
+  background-blend-mode: overlay;
+  align-items: flex-start;
+  justify-content: flex-start;
+  padding-top: max(var(--spacing-xl), env(safe-area-inset-top, 0px));
+  overflow-x: clip;
+  box-sizing: border-box;
+}
+
+.mood-container {
+  width: 100%;
+  max-width: min(900px, 100%);
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mood-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: var(--spacing-md);
+  margin-bottom: var(--spacing-xl);
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: clamp(var(--spacing-sm), 3vw, var(--spacing-lg));
+  min-width: 0;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+.mood-header h2 {
+  margin: 0;
+  font-size: clamp(1.25rem, 4.5vw, 2.2rem);
+  line-height: 1.2;
+  flex: 1 1 12rem;
+  min-width: 0;
+  background: linear-gradient(135deg, var(--text-primary) 0%, var(--accent-pink) 100%);
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+  word-wrap: break-word;
+}
+
+.filter-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--spacing-sm);
+  justify-content: flex-end;
+  align-items: center;
+  flex: 0 1 auto;
+}
+
+.filter-btn {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.2);
+  border-radius: var(--radius-md);
+  color: var(--text-secondary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 0.9rem;
+  font-weight: 500;
+  padding: var(--spacing-xs) var(--spacing-md);
+  transition: all var(--transition-normal);
+}
+
+.filter-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  color: var(--text-primary);
+}
+
+.filter-btn.active {
+  background: linear-gradient(135deg, var(--accent-pink) 0%, var(--accent-purple) 100%);
+  border-color: var(--accent-pink);
+  color: var(--text-primary);
+  box-shadow: 0 4px 15px rgba(244, 114, 182, 0.3);
+}
+
+/* Mood Card Section */
+.mood-card-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.mood-card-section h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+.mood-card {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: clamp(var(--spacing-md), 4vw, var(--spacing-xl));
+  text-align: center;
+  animation: fadeIn 0.6s ease-out;
+  transition: all var(--transition-normal);
+  width: 100%;
+  max-width: 100%;
+  box-sizing: border-box;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .mood-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 40px rgba(31, 38, 135, 0.4);
+  }
+}
+
+.mood-emoji {
+  font-size: clamp(2.5rem, 10vw, 4rem);
+  margin-bottom: var(--spacing-md);
+  animation: moodPulse 2s ease-in-out infinite;
+}
+
+.mood-label {
+  font-size: clamp(1.2rem, 4.5vw, 1.8rem);
+  font-weight: 600;
+  color: var(--text-primary);
+  margin-bottom: var(--spacing-sm);
+}
+
+.mood-description {
+  font-size: clamp(0.9rem, 2.8vw, 1rem);
+  color: var(--text-secondary);
+  line-height: 1.6;
+  max-width: min(300px, 100%);
+  margin: 0 auto;
+}
+
+/* Mood Graph Section */
+.mood-graph-section {
+  margin-bottom: var(--spacing-xl);
+}
+
+.mood-graph-section h3 {
+  margin-bottom: var(--spacing-md);
+  color: var(--text-primary);
+  font-size: 1.5rem;
+}
+
+.graph-container {
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--glass-shadow);
+  padding: clamp(var(--spacing-md), 4vw, var(--spacing-xl));
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
+}
+
+.mood-graph {
+  height: clamp(120px, 28vw, 200px);
+  min-height: 100px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: var(--radius-md);
+  margin-bottom: var(--spacing-lg);
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.mood-graph svg {
+  width: 100%;
+  height: 100%;
+  display: block;
+}
+
+.mood-graph::before {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: linear-gradient(
+    to right,
+    transparent 0%,
+    rgba(0, 255, 136, 0.1) 20%,
+    rgba(0, 212, 255, 0.1) 40%,
+    rgba(139, 92, 246, 0.1) 60%,
+    rgba(244, 114, 182, 0.1) 80%,
+    transparent 100%
+  );
+  animation: graphGlow 3s ease-in-out infinite;
+}
+
+.mood-scale {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+.scale-item {
+  text-align: center;
+  flex: 1;
+}
+
+.scale-item span {
+  display: block;
+  font-size: 1rem;
+  font-weight: 600;
+  margin-bottom: var(--spacing-xs);
+}
+
+.scale-item small {
+  font-size: 0.8rem;
+  color: var(--text-muted);
+  line-height: 1.3;
+}
+
+.scale-item.high span {
+  color: var(--accent-green);
+}
+
+.scale-item.mid span {
+  color: var(--accent-blue);
+}
+
+.scale-item.low span {
+  color: var(--accent-red);
+}
+
+/* Home Button */
+.home-btn {
+  width: 100%;
+  background: var(--glass-bg);
+  backdrop-filter: var(--glass-backdrop);
+  -webkit-backdrop-filter: var(--glass-backdrop);
+  border: 1px solid var(--glass-border);
+  border-radius: var(--radius-md);
+  color: var(--text-primary);
+  cursor: pointer;
+  font-family: inherit;
+  font-size: 1.1rem;
+  font-weight: 500;
+  padding: var(--spacing-md) var(--spacing-lg);
+  transition: all var(--transition-normal);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--spacing-sm);
+}
+
+.home-btn:hover {
+  background: rgba(255, 255, 255, 0.15);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 25px rgba(31, 38, 135, 0.3);
+}
+
+/* Mood Graph Animation */
+.mood-line {
+  stroke: var(--accent-blue);
+  stroke-width: 3;
+  fill: none;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  animation: drawLine 2s ease-out;
+}
+
+.mood-point {
+  fill: var(--accent-blue);
+  r: 4;
+  animation: pointPulse 2s ease-in-out infinite;
+}
+
+.mood-point.high {
+  fill: var(--accent-green);
+}
+
+.mood-point.low {
+  fill: var(--accent-red);
+}
+
+/* Animations */
+@keyframes moodPulse {
+  0%, 100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.05);
+  }
+}
+
+@keyframes graphGlow {
+  0%, 100% {
+    opacity: 0.5;
+  }
+  50% {
+    opacity: 0.8;
+  }
+}
+
+@keyframes drawLine {
+  from {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 1000;
+  }
+  to {
+    stroke-dasharray: 1000;
+    stroke-dashoffset: 0;
+  }
+}
+
+@keyframes pointPulse {
+  0%, 100% {
+    r: 4;
+    opacity: 1;
+  }
+  50% {
+    r: 6;
+    opacity: 0.8;
+  }
+}
+
+/* Large desktop: cap content width for readability */
+@media (min-width: 1440px) {
+  .mood-container {
+    max-width: 960px;
+    margin-left: auto;
+    margin-right: auto;
+  }
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+  .mood-header {
+    flex-direction: column;
+    gap: var(--spacing-md);
+    text-align: center;
+    align-items: stretch;
+  }
+
+  .filter-controls {
+    justify-content: center;
+  }
+
+  .mood-scale {
+    flex-direction: column;
+    gap: var(--spacing-sm);
+  }
+
+  .scale-item {
+    text-align: left;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: var(--spacing-xs) 0;
+    gap: var(--spacing-sm);
+  }
+
+  .scale-item span {
+    margin-bottom: 0;
+  }
+
+  .scale-item small {
+    text-align: right;
+    max-width: 65%;
+  }
+}
+
+@media (max-width: 480px) {
+  .mood-container > * {
+    margin-bottom: var(--spacing-lg);
+  }
+
+  .filter-btn {
+    font-size: clamp(0.75rem, 3.2vw, 0.9rem);
+    padding: var(--spacing-xs) var(--spacing-sm);
+    min-height: 44px;
+  }
+
+  .home-btn {
+    font-size: clamp(0.95rem, 3.5vw, 1.1rem);
+    min-height: 48px;
+  }
+}
+
+@media (max-width: 360px) {
+  .mood-header h2 {
+    font-size: 1.15rem;
+  }
+
+  .scale-item small {
+    font-size: 0.7rem;
+  }
+}
