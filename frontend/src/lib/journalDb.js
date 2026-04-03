@@ -1,4 +1,5 @@
 import Dexie from 'dexie';
+import { normalizeKeywordList } from '../utils/analysisDisplay.js';
 
 const USER_KEY = 'murmur-user-id';
 const LEGACY_STORAGE_KEY = 'murmur-journal-data';
@@ -57,6 +58,7 @@ async function migrateFromLocalStorage(db, userId) {
           analysis: entry.analysis,
           mood: entry.mood,
           createdAt: entry.createdAt,
+          keywords: entry.keywords ?? entry.analysis?.keywords,
         }));
         await db.entries.bulkPut(rows);
       }
@@ -68,14 +70,21 @@ async function migrateFromLocalStorage(db, userId) {
   }
 }
 
+function coerceKeywords(entry) {
+  if (!entry) return [];
+  return normalizeKeywordList(entry.keywords, entry.analysis);
+}
+
 function rowToEntry(row) {
   if (!row) return null;
+  const keywords = coerceKeywords(row);
   return {
     date: row.date,
     analysis: row.analysis,
     mood: row.mood,
     createdAt: row.createdAt,
     savedAt: row.savedAt,
+    keywords,
   };
 }
 
@@ -91,11 +100,13 @@ export async function getAllJournalEntries() {
 
 export async function saveJournalEntry(date, entry) {
   const db = await getJournalDb();
+  const keywords = coerceKeywords(entry);
   await db.entries.put({
     date,
     savedAt: new Date().toISOString(),
     analysis: entry.analysis,
     mood: entry.mood,
+    keywords,
     createdAt: entry.createdAt || new Date().toISOString(),
   });
 }

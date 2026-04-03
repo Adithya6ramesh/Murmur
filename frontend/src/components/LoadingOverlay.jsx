@@ -1,5 +1,5 @@
 /**
- * Full-screen analyzing state — matches frontend/assets/stitch/loading (organic orb).
+ * Full-screen analyzing state (organic orb animation).
  */
 export default function LoadingOverlay({ message = 'Analyzing your reflection…' }) {
   return (

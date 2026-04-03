@@ -102,10 +102,9 @@ frontend/
 │   ├── App.jsx
 │   ├── main.jsx
 │   ├── index.css
-│   ├── components/     # React UI (Stitch-aligned layout)
+│   ├── components/     # React UI
 │   ├── lib/            # storage, journalApi, audioRecorder
 │   └── utils/          # calendar grid, mood helpers
-└── assets/stitch/      # Reference HTML + DESIGN.md
 ```
 
 ## 🎨 Customization

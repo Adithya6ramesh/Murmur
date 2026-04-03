@@ -9,7 +9,6 @@ A clean, production-ready Flask backend for an AI-powered voice journaling appli
 - **🤖 AI Analysis**: Emotional insights and encouraging feedback via Google Gemini
 - **💙 Supportive Tone**: Warm, friendly responses that encourage and support users
 - **🛡️ Production Ready**: Comprehensive error handling, validation, and logging
-- **🐳 Docker Support**: Easy deployment with Docker and Docker Compose
 - **📊 Health Monitoring**: Built-in health checks and service monitoring
 
 ## 🏗️ Architecture
@@ -103,37 +102,6 @@ python run.py
 ```
 
 The API will be available at `http://localhost:5000`
-
-## 🐳 Docker Deployment
-
-### Using Docker Compose (Recommended)
-
-```bash
-# Build and start the service
-docker-compose up -d
-
-# View logs
-docker-compose logs -f
-
-# Stop the service
-docker-compose down
-```
-
-### Using Docker directly
-
-```bash
-# Build the image
-docker build -t murmur-api .
-
-# Run the container
-docker run -d \
-  -p 5000:5000 \
-  --env-file .env \
-  -v $(pwd)/uploads:/app/uploads \
-  -v $(pwd)/models:/app/models \
-  -v $(pwd)/whisper.cpp:/app/whisper.cpp \
-  murmur-api
-```
 
 ## 📡 API Endpoints
 
@@ -323,7 +291,6 @@ Error: Transcription timed out
 
 - **Development**: Logs are printed to console with DEBUG level
 - **Production**: Logs are written with INFO level
-- **Docker**: Use `docker-compose logs -f` to view logs
 
 ## 📄 License
 

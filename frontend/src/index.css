@@ -101,7 +101,7 @@
   animation: profile-pop 0.55s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
 
-/* Stitch loading: organic analyzing orb (see assets/stitch/loading/code.html) */
+/* Loading overlay: organic analyzing orb */
 @keyframes morph-orb {
   0%,
   100% {

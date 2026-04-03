@@ -1,12 +1,101 @@
 """
 Google Gemini AI service for journaling analysis and emotional feedback
 """
+import json
 import logging
+import re
 import threading
+from collections import Counter
+
 import google.generativeai as genai
 from config.settings import Config
 
 logger = logging.getLogger(__name__)
+
+# Common English stop words for transcript-based keyword fallback
+_KEYWORD_STOP = frozenset({
+    'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'is', 'was',
+    'are', 'were', 'be', 'been', 'being', 'have', 'has', 'had', 'do', 'does', 'did', 'will',
+    'would', 'could', 'should', 'may', 'might', 'must', 'can', 'this', 'that', 'these', 'those',
+    'i', 'you', 'he', 'she', 'it', 'we', 'they', 'me', 'him', 'her', 'us', 'them', 'my', 'your',
+    'their', 'our', 'its', 'as', 'with', 'from', 'by', 'not', 'no', 'so', 'if', 'just', 'very',
+    'really', 'about', 'into', 'like', 'got', 'get', 'also', 'too', 'then', 'than', 'there',
+    'here', 'when', 'what', 'which', 'who', 'how', 'why', 'all', 'some', 'any', 'out', 'up',
+})
+
+
+def _keywords_from_transcript(transcript, exclude=None, target_max=8):
+    """Ranked content words from transcript when the model omits keywords."""
+    exclude = {x.lower() for x in (exclude or [])}
+    text = (transcript or '').lower()
+    words = re.findall(r'\b[a-z]{3,}\b', text)
+    counts = Counter(w for w in words if w not in _KEYWORD_STOP and w not in exclude)
+    out = []
+    for w, _ in counts.most_common(24):
+        out.append(w.capitalize())
+        if len(out) >= target_max:
+            break
+    return out
+
+
+def _extract_keywords_raw(analysis):
+    """Gemini sometimes uses alternate keys or nests keywords under summary."""
+    if not isinstance(analysis, dict):
+        return None
+    for key in ('keywords', 'context_keywords', 'top_keywords', 'keyword_tags'):
+        v = analysis.get(key)
+        if v is not None:
+            return v
+    summary = analysis.get('summary')
+    if isinstance(summary, dict) and summary.get('keywords') is not None:
+        return summary['keywords']
+    return None
+
+
+def _normalize_keywords_list(raw, transcript=None):
+    """
+    Return 7–8 distinct strings: main themes from the model, padded from transcript if needed.
+    Accepts list, comma-separated string, or None.
+    """
+    if isinstance(raw, str) and raw.strip():
+        raw = [x.strip() for x in re.split(r'[,;]|\n', raw) if x.strip()]
+    elif not isinstance(raw, list):
+        raw = []
+
+    out = []
+    if isinstance(raw, list):
+        for x in raw:
+            s = re.sub(r'\s+', ' ', str(x).strip())
+            if not s:
+                continue
+            if len(s) > 48:
+                s = s[:45].rstrip() + '…'
+            if s.lower() not in {k.lower() for k in out}:
+                out.append(s)
+    if len(out) < 7 and transcript:
+        need = 8 - len(out)
+        extra = _keywords_from_transcript(
+            transcript,
+            exclude={k.lower() for k in out},
+            target_max=max(need, 8 - len(out)),
+        )
+        for w in extra:
+            if w.lower() not in {k.lower() for k in out}:
+                out.append(w)
+            if len(out) >= 8:
+                break
+    if len(out) > 8:
+        out = out[:8]
+    while len(out) < 7 and transcript:
+        filler = _keywords_from_transcript(transcript, exclude={k.lower() for k in out}, target_max=8)
+        if not filler:
+            break
+        for w in filler:
+            if w.lower() not in {k.lower() for k in out}:
+                out.append(w)
+            if len(out) >= 7:
+                break
+    return out[:8]
 
 _GEMINI_LOCK = threading.Lock()
 
@@ -83,7 +172,17 @@ Analyze this journal entry and respond with ONLY the JSON object - no code block
         "feelings": "Acknowledge their emotions warmly - like a caring friend who really gets it",
         "whats_next": "Long, heartfelt encouragement that pours out genuine support and optimism. Write like you're that friend who always lifts their spirits. Be emotionally rich, use casual language, celebrate their wins or comfort their struggles. Make them feel heard and cared for. This should be substantial and pour your heart out.",
         "mood": "calm"
-    }}
+    }},
+    "keywords": [
+        "Most important theme or entity from their words (rank 1)",
+        "Second most important theme or concept (rank 2)",
+        "Third ranked keyword or phrase (rank 3)",
+        "Fourth ranked keyword (rank 4)",
+        "Fifth ranked keyword (rank 5)",
+        "Sixth ranked keyword (rank 6)",
+        "Seventh ranked keyword (rank 7)",
+        "Eighth ranked keyword (rank 8)"
+    ]
 }}
 
 CRITICAL RULES:
@@ -95,6 +194,7 @@ CRITICAL RULES:
   - "ease" = uplifted, hopeful, light, relieved, or clearly positive emotional tone
   - "calm" = steady, balanced, neutral, reflective without strong swing either way
   - "tension" = stressed, heavy, worried, sad, angry, or clearly difficult emotional load
+- keywords: Exactly 8 entries, ordered most important first. Each must be a short phrase or single word (2–5 words max) capturing main topics, people, places, feelings, or situations from THEIR text—not generic filler. Use their vocabulary when possible.
 - No generic AI responses - be genuinely human and caring
 - Avoid special characters that might break JSON parsing
 
@@ -134,8 +234,6 @@ Journal entry: "{transcript}"
                 logger.error("Empty response from Gemini")
                 return False, "No response generated from Gemini"
             
-            import json
-            import re
             try:
                 if logger.isEnabledFor(logging.DEBUG) and response.text:
                     logger.debug("Raw Gemini response (truncated): %s...", response.text[:200])
@@ -171,6 +269,10 @@ Journal entry: "{transcript}"
                     mood_raw = 'calm'
                 emotional_feedback['mood'] = mood_raw
                 analysis['emotional_feedback'] = emotional_feedback
+                analysis['keywords'] = _normalize_keywords_list(
+                    _extract_keywords_raw(analysis),
+                    transcript.strip(),
+                )
                 logger.info("Successfully analyzed journal entry with proper structure")
                 return True, analysis
             except json.JSONDecodeError as e:
@@ -210,22 +312,50 @@ Journal entry: "{transcript}"
         max_chars = 120_000
         if len(ctx) > max_chars:
             ctx = ctx[:max_chars] + "\n\n[…older entries omitted to fit context limit…]"
-        
-        prompt = f"""You are a warm, thoughtful companion who has read the user's private journal excerpts below.
 
-The user will ask a question. Answer using ONLY what appears in those excerpts. You may summarize patterns, themes, or feelings that show up there.
+        prompt = f"""You are an intelligent reflection assistant.
 
-If the excerpts do not contain enough to answer, say so plainly and suggest one gentle journaling prompt they could try—not a fake answer.
+The user is asking about their past journal entries.
 
-Keep the tone supportive and concise (usually 2–6 short paragraphs unless they asked for a list). Do not invent specific dates, names, or events that are not implied by the text.
+Your job is to:
+1. Understand the user's intent clearly
+2. Analyze the provided journal summaries below (they were retrieved to match the question, but may include noise)
+3. Only treat as relevant entries that truly match the intent—not just keyword overlap
+4. Ignore irrelevant or loosely related excerpts
+5. Provide a clear, thoughtful answer
 
---- Journal excerpts ---
+Do NOT rely on keyword matching alone. Understand relationships and meaning.
+
+Example: If the question is about "fighting with boyfriend":
+- INCLUDE entries where the user had a conflict WITH their boyfriend
+- EXCLUDE entries where the boyfriend is mentioned but not involved in the conflict
+
+If the excerpts do not contain enough to answer, say so plainly and suggest one gentle journaling prompt—do not invent events or dates not implied by the text.
+
+---
+
+User Question:
+{q}
+
+---
+
+Journal Entries:
 {ctx}
---- End of excerpts ---
 
-User question: {q}
+---
 
-Your answer:"""
+Instructions:
+
+- Base your answer ONLY on the journal material above
+- Return in EXACTLY this format (use the labels):
+
+Answer:
+(Your main response—warm, reflective, non-judgmental, human—not robotic. Usually 2–6 short paragraphs unless they asked for a list.)
+
+Relevant Insights:
+- (optional bullet points of patterns or observations; omit this section entirely if nothing useful)
+
+Do not add a separate "Tone:" section."""
 
         def _ask(model):
             try:
@@ -264,6 +394,7 @@ Your answer:"""
                 "whats_next": "Hey, I just want to say how awesome it is that you're taking time to journal and reflect on your thoughts! That takes real courage and shows you're committed to understanding yourself better. Keep this amazing practice going - you're doing something really meaningful for your personal growth. I'm genuinely proud of you for making this space for yourself. 💙",
                 "mood": "calm"
             },
+            "keywords": _normalize_keywords_list(None, transcript),
             "raw_response": raw_response[:500] + "..." if len(raw_response) > 500 else raw_response
         }
     

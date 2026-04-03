@@ -1,6 +1,47 @@
 import { useMemo, useRef, useEffect, useState } from 'react';
 import { askJournalQuestion } from '../lib/journalApi.js';
-import { buildJournalContext } from '../utils/journalContext.js';
+import {
+  buildIndexedEntryRecords,
+  buildJournalContextForAsk,
+  parseAskResponse,
+} from '../utils/journalAskRetrieval.js';
+
+function insightsToBullets(text) {
+  if (!text?.trim()) return [];
+  return text
+    .split(/\n/)
+    .map((l) => l.trim())
+    .filter(Boolean)
+    .map((l) => l.replace(/^[-*•]\s*/, '').trim())
+    .filter(Boolean);
+}
+
+function AssistantBubble({ answer, insights }) {
+  const bullets = insights ? insightsToBullets(insights) : [];
+  return (
+    <div className="space-y-3">
+      <p className="whitespace-pre-wrap text-on-surface">{answer}</p>
+      {insights?.trim() ? (
+        <div className="border-t border-outline-variant/15 pt-3">
+          <p className="mb-2 font-label text-[10px] font-bold uppercase tracking-wider text-on-surface-variant/80">
+            Relevant insights
+          </p>
+          {bullets.length ? (
+            <ul className="list-inside list-disc space-y-1.5 text-on-surface-variant">
+              {bullets.map((line, j) => (
+                <li key={j} className="pl-0.5">
+                  {line}
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="whitespace-pre-wrap text-on-surface-variant">{insights}</p>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
 
 export default function JournalChatPage({ journalEntries, onBack, resolveGeminiKey }) {
   const [messages, setMessages] = useState([]);
@@ -8,8 +49,10 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
   const [loading, setLoading] = useState(false);
   const bottomRef = useRef(null);
 
-  const context = useMemo(() => buildJournalContext(journalEntries), [journalEntries]);
-  const hasJournals = context.trim().length > 0;
+  const hasJournals = useMemo(
+    () => buildIndexedEntryRecords(journalEntries).length > 0,
+    [journalEntries]
+  );
 
   useEffect(() => {
     bottomRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -34,6 +77,19 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
       return;
     }
 
+    const context = buildJournalContextForAsk(q, journalEntries);
+    if (!context.trim()) {
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'assistant',
+          text:
+            'Nothing in your saved journals matched that question yet. Try a broader question or add a few more entries.',
+        },
+      ]);
+      return;
+    }
+
     setLoading(true);
     try {
       const geminiKey = await resolveGeminiKey();
@@ -47,8 +103,17 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
         ]);
         return;
       }
-      const answer = await askJournalQuestion(q, context, geminiKey);
-      setMessages((m) => [...m, { role: 'assistant', text: answer }]);
+      const raw = await askJournalQuestion(q, context, geminiKey);
+      const { answer, insights } = parseAskResponse(raw);
+      setMessages((m) => [
+        ...m,
+        {
+          role: 'assistant',
+          answer: answer || raw,
+          insights: insights?.trim() || '',
+          raw,
+        },
+      ]);
     } catch (e) {
       const msg =
         e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError')
@@ -75,7 +140,8 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
           <div>
             <h1 className="font-headline text-2xl font-bold text-on-surface">Ask Murmur</h1>
             <p className="font-body text-xs text-on-surface-variant">
-              Questions are answered from your saved journals only.
+              Your question is matched to saved summaries &amp; keywords, then answered with Gemini using only that
+              context.
             </p>
           </div>
         </div>
@@ -90,13 +156,17 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
                   : 'mr-auto border border-outline-variant/10 bg-surface-container-low text-on-surface-variant'
               }`}
             >
-              {msg.text}
+              {msg.role === 'assistant' && (msg.answer != null || msg.raw) ? (
+                <AssistantBubble answer={msg.answer ?? msg.text} insights={msg.insights} />
+              ) : (
+                <span className="whitespace-pre-wrap">{msg.text}</span>
+              )}
             </div>
           ))}
           {loading && (
             <div className="mr-auto flex items-center gap-2 rounded-2xl border border-outline-variant/10 bg-surface-container-low px-4 py-3 font-body text-xs text-on-surface-variant">
               <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-primary" />
-              Thinking…
+              Searching your journals and thinking…
             </div>
           )}
           <div ref={bottomRef} />

@@ -1,5 +1,47 @@
 /** Shared copy + parsing for session analysis UI (Analysis page + entry modal). */
 
+/**
+ * Coerce Gemini / stored keywords into a deduped string[] for UI.
+ * Handles arrays, comma-separated strings, and common alternate keys.
+ */
+export function normalizeKeywordList(raw, analysis = null, extraList = null) {
+  const candidates = [];
+  const push = (v) => {
+    if (v == null) return;
+    if (Array.isArray(v)) {
+      candidates.push(...v);
+    } else if (typeof v === 'string' && v.trim()) {
+      candidates.push(
+        ...v
+          .split(/[,;]|\n/)
+          .map((s) => s.trim())
+          .filter(Boolean)
+      );
+    }
+  };
+  push(raw);
+  if (analysis && typeof analysis === 'object') {
+    push(analysis.keywords);
+    push(analysis.context_keywords);
+    push(analysis.top_keywords);
+    if (analysis.summary && typeof analysis.summary === 'object') {
+      push(analysis.summary.keywords);
+    }
+  }
+  push(extraList);
+
+  const seen = new Set();
+  const out = [];
+  for (const c of candidates) {
+    const s = String(c).trim();
+    if (!s || seen.has(s.toLowerCase())) continue;
+    seen.add(s.toLowerCase());
+    out.push(s);
+    if (out.length >= 16) break;
+  }
+  return out;
+}
+
 export function sessionHeadline(mood) {
   const m = (mood || 'calm').toLowerCase();
   if (m === 'ease') return 'Quiet Reflection.';
