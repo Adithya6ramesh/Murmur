@@ -1,4 +1,5 @@
 import { sessionHeadline, sessionSubtitle } from '../utils/analysisDisplay.js';
+import AuthorAttribution from './AuthorAttribution.jsx';
 import SessionAnalysisView from './SessionAnalysisView.jsx';
 
 export default function AnalysisPage({
@@ -17,6 +18,7 @@ export default function AnalysisPage({
   const mood = analysis?.emotional_feedback?.mood || 'calm';
 
   return (
+    <>
     <main className="min-h-screen bg-black pb-32 pt-16 font-body text-zinc-200 md:pt-20">
       <div className="mx-auto max-w-6xl px-4 md:px-8">
         <div className="mb-10 flex items-center justify-between">
@@ -116,5 +118,7 @@ export default function AnalysisPage({
         )}
       </div>
     </main>
+    <AuthorAttribution variant="analysis" />
+    </>
   );
 }

@@ -1,3 +1,5 @@
+import AuthorAttribution from './AuthorAttribution.jsx';
+
 const navItem = (id, icon, label, active, onClick) => (
   <button
     key={id}
@@ -155,6 +157,8 @@ export default function AppShell({
           <div className="pointer-events-none absolute inset-0 animate-ping rounded-full border-2 border-primary/30 opacity-20" />
         </button>
       )}
+
+      <AuthorAttribution />
     </div>
   );
 }
