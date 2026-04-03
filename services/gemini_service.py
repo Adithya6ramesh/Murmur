@@ -12,6 +12,49 @@ from config.settings import Config
 
 logger = logging.getLogger(__name__)
 
+_WRONG_API_KEY_MSG = (
+    "Wrong API key. Check that you copied the full key from Google AI Studio and try again."
+)
+
+
+def _classify_gemini_exception(exc: BaseException) -> tuple[str, str | None]:
+    """
+    Map Gemini / Google SDK errors to a user-facing message and optional error_code.
+    error_code INVALID_GEMINI_API_KEY is used when the key is invalid or not authorized.
+    """
+    try:
+        from google.api_core import exceptions as gexc
+    except ImportError:
+        gexc = None
+
+    msg = str(exc).strip()
+    lowered = msg.lower()
+
+    if gexc:
+        if isinstance(exc, (gexc.PermissionDenied, gexc.Unauthenticated)):
+            return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
+        if isinstance(exc, gexc.InvalidArgument):
+            if any(
+                x in lowered
+                for x in ("api key", "apikey", "api_key", "invalid api", "invalid_argument")
+            ):
+                return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
+
+    if any(
+        x in lowered
+        for x in (
+            "api key not valid",
+            "invalid api key",
+            "api_key_invalid",
+            "api key expired",
+            "requests to this api",
+        )
+    ):
+        return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
+
+    return msg, None
+
+
 # Common English stop words for transcript-based keyword fallback
 _KEYWORD_STOP = frozenset({
     'the', 'a', 'an', 'and', 'or', 'but', 'in', 'on', 'at', 'to', 'for', 'of', 'is', 'was',
@@ -141,7 +184,7 @@ class GeminiService:
                 finally:
                     self._restore_server_config()
         if not self.model:
-            return False, "Gemini API key required. Add your key in Murmur Settings."
+            return False, "Gemini API key required. Add your key in Murmur Settings.", None
         return fn(self.model)
     
     def _create_journaling_prompt(self, transcript):
@@ -210,10 +253,10 @@ Journal entry: "{transcript}"
             request_api_key (str, optional): Client-supplied API key (overrides server env)
             
         Returns:
-            tuple: (success: bool, analysis: dict or error_message: str)
+            tuple: (success, analysis dict or error_message, error_code or None)
         """
         if not transcript or not transcript.strip():
-            return False, "No transcript provided for analysis"
+            return False, "No transcript provided for analysis", None
         return self._run_with_request_key(
             request_api_key,
             lambda model: self._analyze_journal_core(model, transcript.strip()),
@@ -232,7 +275,7 @@ Journal entry: "{transcript}"
             
             if not response or not response.text:
                 logger.error("Empty response from Gemini")
-                return False, "No response generated from Gemini"
+                return False, "No response generated from Gemini", None
             
             try:
                 if logger.isEnabledFor(logging.DEBUG) and response.text:
@@ -257,13 +300,13 @@ Journal entry: "{transcript}"
                 required_keys = ['summary', 'emotional_feedback']
                 if not all(key in analysis for key in required_keys):
                     logger.error(f"Missing required keys in response: {list(analysis.keys())}")
-                    return False, "Invalid response structure from Gemini"
+                    return False, "Invalid response structure from Gemini", None
                 emotional_feedback = analysis.get('emotional_feedback', {})
                 required_emotional_keys = ['key_thoughts', 'feelings', 'whats_next', 'mood']
                 missing_keys = [key for key in required_emotional_keys if key not in emotional_feedback]
                 if missing_keys:
                     logger.error(f"Missing emotional feedback keys: {missing_keys}")
-                    return False, f"Incomplete emotional feedback structure: missing {missing_keys}"
+                    return False, f"Incomplete emotional feedback structure: missing {missing_keys}", None
                 mood_raw = str(emotional_feedback.get('mood', 'calm')).lower().strip()
                 if mood_raw not in ('ease', 'tension', 'calm'):
                     mood_raw = 'calm'
@@ -274,7 +317,7 @@ Journal entry: "{transcript}"
                     transcript.strip(),
                 )
                 logger.info("Successfully analyzed journal entry with proper structure")
-                return True, analysis
+                return True, analysis, None
             except json.JSONDecodeError as e:
                 logger.error("Failed to parse Gemini response as JSON: %s", str(e))
                 if response and response.text:
@@ -284,10 +327,13 @@ Journal entry: "{transcript}"
                     )
                 fallback_analysis = self._create_fallback_analysis(response.text, transcript)
                 logger.info("Using fallback analysis")
-                return True, fallback_analysis
+                return True, fallback_analysis, None
         except Exception as e:
-            logger.error(f"Gemini analysis error: {str(e)}")
-            return False, f"Analysis failed: {str(e)}"
+            logger.error("Gemini analysis error: %s", e)
+            user_msg, err_code = _classify_gemini_exception(e)
+            if err_code:
+                return False, user_msg, err_code
+            return False, "Analysis failed. Please try again.", None
     
     def ask_journal_question(self, question, journal_context, request_api_key=None):
         """
@@ -299,15 +345,15 @@ Journal entry: "{transcript}"
             request_api_key (str, optional): Client-supplied API key
             
         Returns:
-            tuple: (success: bool, answer_text: str or error_message: str)
+            tuple: (success, answer_or_error_message, error_code_or_None)
         """
         q = (question or "").strip()
         if not q:
-            return False, "No question provided"
-        
+            return False, "No question provided", None
+
         ctx = (journal_context or "").strip()
         if not ctx:
-            return False, "No journal history was provided. Add a few voice journal entries first."
+            return False, "No journal history was provided. Add a few voice journal entries first.", None
         
         max_chars = 120_000
         if len(ctx) > max_chars:
@@ -361,13 +407,42 @@ Do not add a separate "Tone:" section."""
             try:
                 response = model.generate_content(prompt)
                 if not response or not response.text:
-                    return False, "No response from the model. Try again."
-                return True, response.text.strip()
+                    return False, "No response from the model. Try again.", None
+                return True, response.text.strip(), None
             except Exception as e:
-                logger.error(f"ask_journal_question error: {str(e)}")
-                return False, f"Could not get an answer: {str(e)}"
+                logger.error("ask_journal_question error: %s", e)
+                user_msg, err_code = _classify_gemini_exception(e)
+                if err_code:
+                    return False, user_msg, err_code
+                return False, "Could not get an answer. Please try again.", None
 
         return self._run_with_request_key(request_api_key, _ask)
+
+    def verify_gemini_api_key(self, request_api_key: str):
+        """
+        Lightweight check that the API key can call Gemini (one short generation).
+
+        Returns:
+            tuple: (success, message_or_none, error_code_or_None)
+        """
+        key = (request_api_key or "").strip()
+        if not key:
+            return False, "No API key provided.", None
+
+        def _verify(model):
+            try:
+                r = model.generate_content("Reply with exactly: OK")
+                if not r or not r.text:
+                    return False, "Could not reach Gemini. Try again.", None
+                return True, None, None
+            except Exception as e:
+                logger.error("verify_gemini_api_key error: %s", e)
+                user_msg, err_code = _classify_gemini_exception(e)
+                if err_code:
+                    return False, user_msg, err_code
+                return False, "Could not verify key. Please try again.", None
+
+        return self._run_with_request_key(key, _verify)
     
     def _create_fallback_analysis(self, raw_response, transcript):
         """
@@ -395,7 +470,6 @@ Do not add a separate "Tone:" section."""
                 "mood": "calm"
             },
             "keywords": _normalize_keywords_list(None, transcript),
-            "raw_response": raw_response[:500] + "..." if len(raw_response) > 500 else raw_response
         }
     
     def health_check(self):
@@ -412,14 +486,14 @@ Do not add a separate "Tone:" section."""
             return False, "Model not initialized"
         
         try:
-            # Test with a simple prompt
-            test_response = self.model.generate_content("Say 'Hello' in JSON format: {\"message\": \"Hello\"}")
+            test_response = self.model.generate_content("Reply with exactly: OK")
             if test_response and test_response.text:
                 return True, "Gemini service is healthy"
             else:
                 return False, "No response from Gemini"
         except Exception as e:
-            return False, f"Health check failed: {str(e)}"
+            logger.error("Gemini health check failed: %s", e)
+            return False, "Gemini health check failed"
 
 # Create a singleton instance
 gemini_service = GeminiService()

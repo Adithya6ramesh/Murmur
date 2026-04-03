@@ -20,6 +20,29 @@ function mergeApiHeaders(base = {}) {
   return { ...base, ...murmurServiceHeaders() };
 }
 
+/** Parse JSON error body from API; falls back to raw text. */
+async function readApiError(response) {
+  const text = await response.text();
+  try {
+    const j = JSON.parse(text);
+    if (j && typeof j.message === 'string') {
+      return { message: j.message, errorCode: j.error_code, raw: text };
+    }
+  } catch {
+    /* ignore */
+  }
+  return { message: text || `Request failed (${response.status})`, errorCode: undefined, raw: text };
+}
+
+function throwFromFailedResponse(response, { message, errorCode }, fallbackLabel) {
+  if (errorCode === 'INVALID_GEMINI_API_KEY') {
+    throw new Error(
+      message || 'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+    );
+  }
+  throw new Error(message || `${fallbackLabel} (${response.status})`);
+}
+
 async function fetchBackend(url, options = {}) {
   const next = {
     ...options,
@@ -47,8 +70,8 @@ export async function transcribeAudio(audioBlob) {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Backend error (${response.status}): ${errorText}`);
+    const err = await readApiError(response);
+    throwFromFailedResponse(response, err, 'Transcription failed');
   }
 
   const result = await response.json();
@@ -70,12 +93,18 @@ export async function analyzeText(text, geminiApiKey) {
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Failed to analyze text (${response.status}): ${errorText}`);
+    const err = await readApiError(response);
+    throwFromFailedResponse(response, err, 'Failed to analyze text');
   }
 
   const result = await response.json();
   if (!result.success) {
+    if (result.error_code === 'INVALID_GEMINI_API_KEY') {
+      throw new Error(
+        result.message ||
+          'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+      );
+    }
     throw new Error(result.message || 'Analysis failed');
   }
   return result.data.analysis;
@@ -97,13 +126,49 @@ export async function askJournalQuestion(question, journalContext, geminiApiKey)
   });
 
   if (!response.ok) {
-    const errorText = await response.text();
-    throw new Error(`Backend error (${response.status}): ${errorText}`);
+    const err = await readApiError(response);
+    throwFromFailedResponse(response, err, 'Ask Murmur failed');
   }
 
   const result = await response.json();
   if (!result.success) {
+    if (result.error_code === 'INVALID_GEMINI_API_KEY') {
+      throw new Error(
+        result.message ||
+          'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+      );
+    }
     throw new Error(result.message || 'Could not get an answer');
   }
   return result.data.answer;
+}
+
+/**
+ * Calls the backend to verify the key works before saving locally.
+ */
+export async function verifyGeminiApiKey(geminiApiKey) {
+  const headers = mergeApiHeaders({ 'Content-Type': 'application/json' });
+  if (geminiApiKey?.trim()) {
+    headers['X-Gemini-Api-Key'] = geminiApiKey.trim();
+  }
+  const response = await fetchBackend(`${API_BASE}/journal/verify-gemini-key`, {
+    method: 'POST',
+    headers,
+    body: '{}',
+    mode: 'cors',
+  });
+  if (!response.ok) {
+    const err = await readApiError(response);
+    throwFromFailedResponse(response, err, 'Could not verify API key');
+  }
+  const result = await response.json();
+  if (!result.success) {
+    if (result.error_code === 'INVALID_GEMINI_API_KEY') {
+      throw new Error(
+        result.message ||
+          'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+      );
+    }
+    throw new Error(result.message || 'Could not verify API key');
+  }
 }

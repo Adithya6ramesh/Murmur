@@ -31,9 +31,13 @@ export default function SettingsPage({ settings, onSave, onPersistGeminiKey, onB
   };
 
   const handleSaveKeyOnly = async () => {
-    await onPersistGeminiKey(form.geminiApiKey.trim());
-    setSavedHint(true);
-    setTimeout(() => setSavedHint(false), 2000);
+    try {
+      await onPersistGeminiKey(form.geminiApiKey.trim());
+      setSavedHint(true);
+      setTimeout(() => setSavedHint(false), 2000);
+    } catch (e) {
+      alert(e.message || 'Could not save your API key. Please try again.');
+    }
   };
 
   const handleRemoveGeminiKey = async () => {
@@ -135,9 +139,19 @@ export default function SettingsPage({ settings, onSave, onPersistGeminiKey, onB
               <div className="mt-5 rounded-md bg-surface-container-low/80 px-4 py-3">
                 <p className="mb-2 font-body text-xs font-medium text-on-surface-variant">How to get a key (simple steps)</p>
                 <ul className="list-inside list-disc space-y-2 font-body text-xs leading-relaxed text-on-surface-variant">
-                  <li>Open Google’s Gemini page in your browser and sign in with the Google account you want to use.</li>
+                  <li>
+                    Open{" "}
+                    <a
+                        href="https://ai.google.dev/gemini-api/docs?_gl=1*1nch1mg*_up*MQ..&gclid=Cj0KCQjwyr3OBhD0ARIsALlo-Ok6e33VIXNQRuFyw4egV2Cx3LbdNWnfjFO2xrugqkr0rfBkpWyKr_8aAvzSEALw_wcB&gbraid=0AAAAACn9t64jp770XLYp-3jNmhwtZaJgR"
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-primary underline"
+                     >
+                        Google AI Studio
+                   </a>{" "}
+                   in your browser and sign in with the Google account you want to use.</li>
                   <li>Look for the area that mentions API keys or “Get API key,” then create a new key when asked.</li>
-                  <li>Copy the long line of text it gives you and paste it above—treat it like a password and don’t share it.</li>
+                  <li>Copy the long line of text it gives you and paste it above, treat it like a password and don’t share it.</li>
                 </ul>
               </div>
 

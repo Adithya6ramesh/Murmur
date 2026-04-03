@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { AudioRecorder } from './lib/audioRecorder.js';
 import { getAllJournalEntries, getJournalDb, saveJournalEntry } from './lib/journalDb.js';
-import { analyzeText, transcribeAudio } from './lib/journalApi.js';
+import { analyzeText, transcribeAudio, verifyGeminiApiKey } from './lib/journalApi.js';
 import {
   buildMoodSeriesFromEntries,
   buildWeeklyResonanceBars,
@@ -180,6 +180,10 @@ export default function App() {
   }, []);
 
   const persistGeminiFromUser = useCallback(async (plaintext) => {
+    const trimmed = plaintext.trim();
+    if (trimmed) {
+      await verifyGeminiApiKey(trimmed);
+    }
     const next = await persistGeminiApiKey(plaintext);
     setUserSettings(next);
   }, []);
@@ -355,7 +359,7 @@ export default function App() {
       await refreshEntries();
     } catch (e) {
       console.error(e);
-      alert('Failed to analyze transcript. Please try again.');
+      alert(e.message || 'Failed to analyze transcript. Please try again.');
     } finally {
       setLoadingMessage(null);
     }

@@ -167,8 +167,8 @@ export default function HomePage({
           <h3 className="font-headline text-lg font-bold text-on-surface">Latest murmur</h3>
           <p className="font-body text-xs text-on-surface-variant">
             {lastEntryHint
-              ? 'Tap to ask questions across your journals—or open the calendar to revisit a day.'
-              : 'Tap to ask Murmur about your journals once you have entries—or record one first.'}
+              ? 'Tap to ask questions across your journals or open the calendar to revisit a day.'
+              : 'Tap to ask Murmur about your journals once you have entries or record one first.'}
           </p>
           <span className="font-label text-[10px] uppercase tracking-widest text-primary/80 opacity-0 transition group-hover:opacity-100">
             Ask Murmur →

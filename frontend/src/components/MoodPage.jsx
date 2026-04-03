@@ -29,8 +29,8 @@ export default function MoodPage({
 
   const insight =
     resStats.tensionPct > resStats.easePct
-      ? 'Tension shows up more in this window—short voice check-ins can help unload what’s heavy.'
-      : 'Your entries lean steadier here—keep the small reflections coming; they add up.';
+      ? 'Tension shows up more in this window, short voice check-ins can help unload what’s heavy.'
+      : 'Your entries lean steadier here; keep the small reflections coming; they add up.';
 
   return (
     <main className="mood-gradient-bg min-h-screen px-4 pb-32 pt-24 md:px-6">
@@ -199,7 +199,7 @@ export default function MoodPage({
             <p className="font-body text-sm text-on-surface-variant">
               {resStats.total
                 ? `Across this window you logged ${resStats.total} resonance signal${resStats.total === 1 ? '' : 's'} from Gemini (ease / calm / tension). Tap Journal to add more voice entries.`
-                : 'No mood data yet—complete an analysis from a recording to populate this view.'}
+                : 'No mood data yet? Complete an analysis from a recording to populate this view.'}
             </p>
           </div>
 

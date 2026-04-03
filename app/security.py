@@ -1,6 +1,6 @@
 """
-API hardening: optional Murmur service token, safe comparisons, no secret leakage in logs.
-Gemini keys must never appear in logs or JSON responses.
+API hardening: optional Murmur service token, safe comparisons, security headers,
+and no secret leakage in logs or responses.
 """
 import hashlib
 import hmac
@@ -13,7 +13,6 @@ from utils.responses import error_response
 
 logger = logging.getLogger(__name__)
 
-# Headers that must never be echoed or logged verbatim
 _SENSITIVE_HEADERS = (
     "x-gemini-api-key",
     "authorization",
@@ -43,8 +42,6 @@ def _verify_murmur_token(token: str) -> bool:
 
     secret = (current_app.config.get("MURMUR_API_SECRET") or "").strip()
     if not secret:
-        # Guard should only run when murmur_auth_configured(); if we reach here with no
-        # plain secret, SHA path was skipped — treat as failed auth, not "open".
         return False
     if len(token) != len(secret):
         return False
@@ -81,12 +78,28 @@ def enforce_murmur_api_guard():
 
 
 def add_security_headers(response):
-    """Minimal headers to reduce XSS / MIME sniffing on API responses."""
+    """Defence-in-depth response headers for XSS, clickjacking, MIME sniffing, and transport."""
     response.headers["X-Content-Type-Options"] = "nosniff"
     response.headers["X-Frame-Options"] = "DENY"
     response.headers["Referrer-Policy"] = "no-referrer"
     response.headers["Permissions-Policy"] = "camera=(), microphone=(), geolocation=()"
-    # Do not cache API JSON by default
+    response.headers["X-XSS-Protection"] = "1; mode=block"
+
+    response.headers["Content-Security-Policy"] = (
+        "default-src 'self'; "
+        "script-src 'self'; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; "
+        "font-src 'self' https://fonts.gstatic.com; "
+        "img-src 'self' data: https:; "
+        "connect-src 'self'; "
+        "frame-ancestors 'none'; "
+        "base-uri 'self'; "
+        "form-action 'self'"
+    )
+
+    if not current_app.debug:
+        response.headers["Strict-Transport-Security"] = "max-age=31536000; includeSubDomains"
+
     if request.path.startswith("/api/"):
         response.headers["Cache-Control"] = "no-store"
     return response

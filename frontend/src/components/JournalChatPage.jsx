@@ -71,7 +71,7 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
         {
           role: 'assistant',
           text:
-            "You don't have any saved journal text yet. Record a few murmurs from the Journal home, then come back—I'll answer from what you've shared.",
+            "You don't have any saved journal text yet. Record a few murmurs from the Journal home, then come back..I'll answer from what you've shared.",
         },
       ]);
       return;
@@ -98,7 +98,7 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
           ...m,
           {
             role: 'assistant',
-            text: 'Add your Gemini API key in Settings first—Murmur needs it to answer with Gemini.',
+            text: 'Add your Gemini API key in Settings first. Murmur needs it to answer with Gemini.',
           },
         ]);
         return;
