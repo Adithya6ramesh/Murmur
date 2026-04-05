@@ -82,19 +82,60 @@ export function buildMoodSeriesFromEntries(entries) {
   return [...map.values()].sort((a, b) => new Date(a.date) - new Date(b.date));
 }
 
-export function getFilteredMoodData(series, filter) {
+/** Default SVG layout for Insights chart (must match MoodPage / buildSvgPath). */
+export const MOOD_CHART_VIEW = { width: 400, height: 200, padding: 20 };
+
+/**
+ * Visible time span for the chart (aligned with getFilteredMoodData).
+ * Month = six calendar months ending today (from 00:00 on the 1st of month −5).
+ */
+export function getMoodDateRange(filter) {
   const today = new Date();
-  let startDate;
+  const end = new Date(today);
+  end.setHours(23, 59, 59, 999);
+  const start = new Date(today);
+  start.setHours(0, 0, 0, 0);
   if (filter === 'week') {
-    startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 7);
+    start.setDate(start.getDate() - 7);
   } else {
-    startDate = new Date(today);
-    startDate.setDate(startDate.getDate() - 30);
+    start.setMonth(start.getMonth() - 5);
+    start.setDate(1);
   }
+  return { start, end };
+}
+
+/**
+ * First-of-month tick marks for the month chart: label + frac along [range.start, range.end].
+ * March moods fall between the Mar and Apr ticks (linear calendar time).
+ */
+export function getMonthAxisTicks(chartRange) {
+  if (!chartRange?.start || !chartRange?.end) return { ticks: [] };
+  const t0 = chartRange.start.getTime();
+  const t1 = chartRange.end.getTime();
+  const span = Math.max(t1 - t0, 1);
+  const ticks = [];
+  let cur = new Date(chartRange.start.getFullYear(), chartRange.start.getMonth(), 1);
+  while (cur.getTime() <= t1) {
+    ticks.push({
+      label: cur.toLocaleString('en-US', { month: 'short' }),
+      frac: (cur.getTime() - t0) / span,
+    });
+    cur = new Date(cur.getFullYear(), cur.getMonth() + 1, 1);
+  }
+  return { ticks, t0, t1, span };
+}
+
+/** Map timeline fraction (0–1) to horizontal % for axis labels aligned to SVG plot area. */
+export function fractionToChartXPercent(frac, width = MOOD_CHART_VIEW.width, padding = MOOD_CHART_VIEW.padding) {
+  const graphWidth = width - padding * 2;
+  return ((padding + frac * graphWidth) / width) * 100;
+}
+
+export function getFilteredMoodData(series, filter) {
+  const { start: startDate, end: endDate } = getMoodDateRange(filter);
   return series.filter((entry) => {
     const entryDate = new Date(entry.date);
-    return entryDate >= startDate && entryDate <= today;
+    return entryDate >= startDate && entryDate <= endDate;
   });
 }
 
@@ -186,13 +227,37 @@ export function buildWeeklyResonanceBars(moodSeries) {
 
 export { moodColors };
 
-export function buildSvgPath(data, width = 400, height = 200, padding = 20) {
+/**
+ * Line chart: x = time within [range.start, range.end], y = resonance (ease top → tension bottom).
+ */
+export function buildSvgPath(
+  data,
+  width = 400,
+  height = 200,
+  padding = 20,
+  range = null
+) {
   if (!data.length) return { lineD: '', areaD: '', points: [] };
+
+  const sorted = [...data].sort((a, b) => new Date(a.date) - new Date(b.date));
   const graphWidth = width - padding * 2;
   const graphHeight = height - padding * 2;
-  const n = data.length;
-  const pathPoints = data.map((point, index) => {
-    const x = padding + (n <= 1 ? 0 : (index / (n - 1)) * graphWidth);
+
+  let t0;
+  let t1;
+  if (range?.start && range?.end) {
+    t0 = range.start.getTime();
+    t1 = range.end.getTime();
+  } else {
+    const times = sorted.map((p) => new Date(p.date).getTime());
+    t0 = Math.min(...times);
+    t1 = Math.max(...times);
+  }
+  const span = Math.max(t1 - t0, 1);
+
+  const pathPoints = sorted.map((point) => {
+    const tp = new Date(point.date).getTime();
+    const x = padding + ((tp - t0) / span) * graphWidth;
     const y = padding + (3 - point.value) * (graphHeight / 2);
     return { x, y, point };
   });

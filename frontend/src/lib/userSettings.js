@@ -5,7 +5,6 @@ const STORAGE_KEY = 'murmur-user-settings';
 const DEFAULTS = {
   displayName: '',
   email: '',
-  inspectOldChat: false,
   geminiKeyEnc: '',
   geminiKeyHint: '',
 };

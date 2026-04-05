@@ -14,7 +14,6 @@ export default function AnalysisPage({
   addRecordingDisabled = false,
   onHome,
   onMood,
-  inspectOldChatEnabled = false,
   pastJournalEntries = [],
 }) {
   const mood = analysis?.emotional_feedback?.mood || 'calm';
@@ -41,7 +40,7 @@ export default function AnalysisPage({
           </button>
         </div>
 
-        {inspectOldChatEnabled && pastJournalEntries.length > 0 && (
+        {pastJournalEntries.length > 0 && (
           <div className="mb-8 rounded-3xl border border-white/[0.06] bg-[#141414] p-5">
             <h3 className="mb-3 font-headline text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
               Previous reflections

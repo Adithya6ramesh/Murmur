@@ -1,11 +1,27 @@
 import { useLayoutEffect, useMemo, useRef, useState } from 'react';
 import {
   buildSvgPath,
+  fractionToChartXPercent,
   getFilteredMoodData,
+  getMonthAxisTicks,
+  getMoodDateRange,
+  MOOD_CHART_VIEW,
   moodColors,
   moodResonanceStats,
   resonanceColors,
 } from '../utils/moodData.js';
+
+function rollingWeekAxisLabels() {
+  const out = [];
+  const d = new Date();
+  d.setHours(0, 0, 0, 0);
+  for (let i = 6; i >= 0; i -= 1) {
+    const x = new Date(d);
+    x.setDate(d.getDate() - i);
+    out.push(x.toLocaleDateString('en-US', { weekday: 'short' }));
+  }
+  return out;
+}
 
 export default function MoodPage({
   moodSeries,
@@ -18,8 +34,30 @@ export default function MoodPage({
   const pathRef = useRef(null);
   const [pathLen, setPathLen] = useState(0);
   const filtered = useMemo(() => getFilteredMoodData(moodSeries, filter), [moodSeries, filter]);
+  const chartRange = useMemo(() => getMoodDateRange(filter), [filter]);
   const resStats = useMemo(() => moodResonanceStats(filtered), [filtered]);
-  const { lineD, areaD, points: pathPoints } = buildSvgPath(filtered);
+  const { lineD, areaD, points: pathPoints } = useMemo(
+    () =>
+      buildSvgPath(
+        filtered,
+        MOOD_CHART_VIEW.width,
+        MOOD_CHART_VIEW.height,
+        MOOD_CHART_VIEW.padding,
+        chartRange
+      ),
+    [filtered, chartRange]
+  );
+
+  const monthAxisMeta = useMemo(() => {
+    if (filter !== 'month') return { ticks: [], dividerXs: [] };
+    const { ticks } = getMonthAxisTicks(chartRange);
+    const { width, padding } = MOOD_CHART_VIEW;
+    const graphWidth = width - padding * 2;
+    return {
+      ticks,
+      dividerXs: ticks.slice(1).map((t) => padding + t.frac * graphWidth),
+    };
+  }, [filter, chartRange]);
 
   useLayoutEffect(() => {
     if (pathRef.current && lineD) {
@@ -39,7 +77,9 @@ export default function MoodPage({
           <div>
             <h2 className="mb-2 font-headline text-4xl font-bold text-on-surface">Atmosphere</h2>
             <p className="max-w-md font-body text-on-surface-variant">
-              Your emotional landscape over the last period. Reflections captured through sound and silence.
+              {filter === 'month'
+                ? 'Six calendar months of entries—each point sits on the real date, so a March mood appears between March and April on the line.'
+                : 'Your emotional landscape over the last seven days. Reflections captured through sound and silence.'}
             </p>
           </div>
           <div className="inline-flex rounded-full border border-outline-variant/10 bg-surface-container-low p-1">
@@ -116,9 +156,16 @@ export default function MoodPage({
           </div>
 
           <div className="flex flex-col rounded-xl border border-outline-variant/5 bg-surface-container p-8 lg:col-span-8">
-            <div className="mb-10 flex items-center justify-between">
-              <h3 className="font-headline text-xl font-bold">Emotional velocity</h3>
-              <div className="flex flex-wrap gap-3">
+            <div className="mb-10 flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between">
+              <div>
+                <h3 className="font-headline text-xl font-bold">Emotional velocity</h3>
+                <p className="mt-1 font-body text-xs text-on-surface-variant/90">
+                  {filter === 'month'
+                    ? 'X: calendar time (six months to today) · Y: ease (high) → calm → tension (low)'
+                    : 'X: last seven days · Y: ease (high) → calm → tension (low)'}
+                </p>
+              </div>
+              <div className="flex flex-shrink-0 flex-wrap gap-3">
                 <div className="flex items-center gap-2">
                   <span className="h-2 w-2 rounded-full bg-primary" />
                   <span className="font-label text-xs uppercase tracking-widest text-on-surface-variant">Ease</span>
@@ -146,13 +193,31 @@ export default function MoodPage({
                 <span>Tension</span>
               </div>
 
-              <svg className="absolute inset-0 h-[85%] w-full overflow-visible" viewBox="0 0 400 200" preserveAspectRatio="none">
+              <svg
+                className="absolute inset-0 h-[85%] w-full overflow-visible"
+                viewBox={`0 0 ${MOOD_CHART_VIEW.width} ${MOOD_CHART_VIEW.height}`}
+                preserveAspectRatio="none"
+              >
                 <defs>
                   <linearGradient id="chartGradient" x1="0" x2="0" y1="0" y2="1">
                     <stop offset="0%" stopColor="#accec5" stopOpacity="0.3" />
                     <stop offset="100%" stopColor="#accec5" stopOpacity="0" />
                   </linearGradient>
                 </defs>
+                {filter === 'month' &&
+                  monthAxisMeta.dividerXs.map((x, i) => (
+                    <line
+                      key={i}
+                      x1={x}
+                      y1={MOOD_CHART_VIEW.padding}
+                      x2={x}
+                      y2={MOOD_CHART_VIEW.height - MOOD_CHART_VIEW.padding}
+                      className="text-on-surface"
+                      stroke="currentColor"
+                      strokeOpacity="0.08"
+                      vectorEffect="non-scaling-stroke"
+                    />
+                  ))}
                 {areaD && (
                   <path d={areaD} fill="url(#chartGradient)" stroke="none" vectorEffect="non-scaling-stroke" />
                 )}
@@ -186,11 +251,25 @@ export default function MoodPage({
                 ))}
               </svg>
 
-              <div className="absolute bottom-0 left-0 right-0 flex justify-between px-4 text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant">
-                {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
-                  <span key={d}>{d}</span>
-                ))}
-              </div>
+              {filter === 'month' ? (
+                <div className="absolute bottom-0 left-0 right-0 h-7">
+                  {monthAxisMeta.ticks.map(({ label, frac }, i) => (
+                    <span
+                      key={`${label}-${i}`}
+                      className="absolute top-0 -translate-x-1/2 text-[9px] font-bold uppercase tracking-tighter text-on-surface-variant sm:text-[10px]"
+                      style={{ left: `${fractionToChartXPercent(frac)}%` }}
+                    >
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              ) : (
+                <div className="absolute bottom-0 left-0 right-0 flex justify-between px-4 text-[10px] font-bold uppercase tracking-tighter text-on-surface-variant">
+                  {rollingWeekAxisLabels().map((d, i) => (
+                    <span key={`${filter}-${i}`}>{d}</span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
 
@@ -198,7 +277,7 @@ export default function MoodPage({
             <h4 className="mb-6 font-headline text-lg font-bold">Rhythm notes</h4>
             <p className="font-body text-sm text-on-surface-variant">
               {resStats.total
-                ? `Across this window you logged ${resStats.total} resonance signal${resStats.total === 1 ? '' : 's'} from Gemini (ease / calm / tension). Tap Journal to add more voice entries.`
+                ? `Across this window you logged ${resStats.total} resonance signal${resStats.total === 1 ? '' : 's'}. Tap Journal to add more voice entries.`
                 : 'No mood data yet? Complete an analysis from a recording to populate this view.'}
             </p>
           </div>

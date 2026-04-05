@@ -5,7 +5,6 @@ export default function SettingsPage({ settings, onSave, onPersistGeminiKey, onB
     displayName: settings.displayName ?? '',
     email: settings.email ?? '',
     geminiApiKey: '',
-    inspectOldChat: settings.inspectOldChat ?? false,
   }));
   const [savedHint, setSavedHint] = useState(false);
   const hasSavedGeminiKey = Boolean(settings.geminiKeyPresent);
@@ -14,7 +13,6 @@ export default function SettingsPage({ settings, onSave, onPersistGeminiKey, onB
     setForm((prev) => ({
       displayName: settings.displayName ?? '',
       email: settings.email ?? '',
-      inspectOldChat: settings.inspectOldChat,
       geminiApiKey: settings.geminiKeyPresent ? '' : prev.geminiApiKey ?? '',
     }));
   }, [settings]);
@@ -43,11 +41,6 @@ export default function SettingsPage({ settings, onSave, onPersistGeminiKey, onB
   const handleRemoveGeminiKey = async () => {
     update({ geminiApiKey: '' });
     await onPersistGeminiKey('');
-  };
-
-  const handleToggleInspect = (enabled) => {
-    update({ inspectOldChat: enabled });
-    onSave({ inspectOldChat: enabled });
   };
 
   return (
@@ -165,32 +158,6 @@ export default function SettingsPage({ settings, onSave, onPersistGeminiKey, onB
               </button>
             </>
           )}
-        </section>
-
-        <section className="glass-card rounded-xl p-6">
-          <div className="flex items-center justify-between gap-4">
-            <div>
-              <h2 className="font-headline text-lg font-bold text-on-surface">Inspect old chat</h2>
-              <p className="mt-1 max-w-sm font-body text-xs text-on-surface-variant">
-                When on, you can browse past reflections on the analysis screen. When off, that list stays hidden.
-              </p>
-            </div>
-            <button
-              type="button"
-              role="switch"
-              aria-checked={form.inspectOldChat}
-              onClick={() => handleToggleInspect(!form.inspectOldChat)}
-              className={`relative h-8 w-14 shrink-0 rounded-full transition-colors duration-300 ease-in-out ${
-                form.inspectOldChat ? 'bg-primary' : 'bg-surface-container-highest'
-              }`}
-            >
-              <span
-                className={`absolute top-1 h-6 w-6 rounded-full bg-on-surface shadow transition-transform duration-300 ease-in-out ${
-                  form.inspectOldChat ? 'left-7' : 'left-1'
-                }`}
-              />
-            </button>
-          </div>
         </section>
       </div>
     </main>

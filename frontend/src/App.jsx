@@ -195,7 +195,6 @@ function AppRoutes() {
   }, [weeklyBarHeights]);
 
   const pastJournalEntries = useMemo(() => {
-    if (!userSettings.inspectOldChat) return [];
     return Object.entries(journalEntries)
       .filter(([, e]) => e?.analysis?.summary || e?.analysis?.emotional_feedback)
       .map(([date, entry]) => {
@@ -211,7 +210,7 @@ function AppRoutes() {
       })
       .sort((a, b) => new Date(b.date) - new Date(a.date))
       .slice(0, 12);
-  }, [journalEntries, userSettings.inspectOldChat]);
+  }, [journalEntries]);
 
   const updateUserSettings = useCallback((partial) => {
     setUserSettings(saveUserSettings(partial));
@@ -450,7 +449,6 @@ function AppRoutes() {
                 refreshEntries();
                 navigate('/mood');
               }}
-              inspectOldChatEnabled={userSettings.inspectOldChat}
               pastJournalEntries={pastJournalEntries}
             />
           }
