@@ -8,6 +8,8 @@ export default function EntryModal({ entry, onClose, onDelete }) {
 
   if (!entry) return null;
 
+  const isTodayEntry = entry.date === new Date().toDateString();
+
   const analysis = entry.analysis;
   const mood = analysis?.emotional_feedback?.mood || entry.mood?.resonance || 'calm';
 
@@ -121,7 +123,9 @@ export default function EntryModal({ entry, onClose, onDelete }) {
                 Delete this journal entry?
               </h4>
               <p id="delete-confirm-desc" className="mt-3 text-center font-body text-sm leading-relaxed text-zinc-400">
-                This removes it from this device. You can record a new entry for this day whenever you like.
+                {isTodayEntry
+                  ? 'This removes it from this device. You can record a new entry for today after deleting.'
+                  : 'This removes it from this device. Past days cannot be re-recorded.'}
               </p>
               <div className="mt-6 flex flex-col gap-2 sm:flex-row sm:justify-end sm:gap-3">
                 <button

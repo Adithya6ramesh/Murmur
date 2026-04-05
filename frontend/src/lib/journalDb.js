@@ -100,6 +100,10 @@ export async function getAllJournalEntries() {
 
 export async function saveJournalEntry(date, entry) {
   const db = await getJournalDb();
+  const existing = await db.entries.get(date);
+  if (existing) {
+    throw new Error('A journal entry already exists for this day.');
+  }
   const keywords = coerceKeywords(entry);
   await db.entries.put({
     date,

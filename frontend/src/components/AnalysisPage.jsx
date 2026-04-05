@@ -14,7 +14,6 @@ export default function AnalysisPage({
   addRecordingDisabled = false,
   onHome,
   onMood,
-  pastJournalEntries = [],
 }) {
   const mood = analysis?.emotional_feedback?.mood || 'calm';
 
@@ -39,24 +38,6 @@ export default function AnalysisPage({
             Insights
           </button>
         </div>
-
-        {pastJournalEntries.length > 0 && (
-          <div className="mb-8 rounded-3xl border border-white/[0.06] bg-[#141414] p-5">
-            <h3 className="mb-3 font-headline text-xs font-bold uppercase tracking-[0.2em] text-zinc-500">
-              Previous reflections
-            </h3>
-            <ul className="max-h-64 space-y-3 overflow-y-auto pr-1">
-              {pastJournalEntries.map((item) => (
-                <li key={item.date} className="rounded-2xl border border-white/[0.04] bg-black/40 px-4 py-3">
-                  <p className="font-label text-[10px] font-bold uppercase tracking-wider text-[#accec5]/80">
-                    {item.date}
-                  </p>
-                  <p className="mt-1 font-body text-xs leading-relaxed text-zinc-500">{item.preview}</p>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
 
         {!analysisVisible && (
           <div className="rounded-3xl border border-white/[0.06] bg-[#1a1a1a] p-6 shadow-2xl md:p-8">

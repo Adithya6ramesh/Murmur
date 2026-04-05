@@ -87,6 +87,8 @@ function AppRoutes() {
   const [moodSeries, setMoodSeries] = useState([]);
 
   const [loadingMessage, setLoadingMessage] = useState(null);
+  const [recordToast, setRecordToast] = useState(null);
+  const recordToastTimerRef = useRef(null);
   const [userSettings, setUserSettings] = useState(() => loadUserSettings());
   const [profileNudgeDismissed, setProfileNudgeDismissed] = useState(() =>
     typeof localStorage !== 'undefined' && localStorage.getItem('murmur-nudge-profile-dismissed') === '1'
@@ -160,6 +162,15 @@ function AppRoutes() {
     setMoodSeries(buildMoodSeriesFromEntries(entries));
   }, []);
 
+  const showRecordToast = useCallback((message) => {
+    setRecordToast(message);
+    if (recordToastTimerRef.current) clearTimeout(recordToastTimerRef.current);
+    recordToastTimerRef.current = setTimeout(() => {
+      setRecordToast(null);
+      recordToastTimerRef.current = null;
+    }, 7000);
+  }, []);
+
   const handleDeleteJournalEntry = useCallback(
     async (date) => {
       try {
@@ -194,24 +205,6 @@ function AppRoutes() {
     return m;
   }, [weeklyBarHeights]);
 
-  const pastJournalEntries = useMemo(() => {
-    return Object.entries(journalEntries)
-      .filter(([, e]) => e?.analysis?.summary || e?.analysis?.emotional_feedback)
-      .map(([date, entry]) => {
-        const kp = entry.analysis?.summary?.key_points?.[0];
-        const feelings = entry.analysis?.emotional_feedback?.feelings;
-        const raw = kp
-          ? String(kp)
-          : feelings
-            ? String(feelings).replace(/\s+/g, ' ').trim()
-            : '';
-        const preview = raw.length > 160 ? `${raw.slice(0, 160)}…` : raw;
-        return { date, preview: preview || '—' };
-      })
-      .sort((a, b) => new Date(b.date) - new Date(a.date))
-      .slice(0, 12);
-  }, [journalEntries]);
-
   const updateUserSettings = useCallback((partial) => {
     setUserSettings(saveUserSettings(partial));
   }, []);
@@ -243,6 +236,12 @@ function AppRoutes() {
           alert('Add your Gemini API key in Settings before recording.');
           return;
         }
+        if (journalEntries[today]) {
+          showRecordToast(
+            "You can't record. If you want, you can delete your journal and re-record it."
+          );
+          return;
+        }
         navigate('/record');
       }
       if (nav === 'settings') navigate('/settings');
@@ -252,8 +251,17 @@ function AppRoutes() {
         refreshEntries();
       }
     },
-    [navigate, refreshEntries]
+    [navigate, refreshEntries, journalEntries, today, showRecordToast]
   );
+
+  useEffect(() => {
+    if (location.pathname !== '/record') return;
+    if (!journalEntries[today]) return;
+    showRecordToast(
+      "You can't record. If you want, you can delete your journal and re-record it."
+    );
+    navigate('/', { replace: true });
+  }, [location.pathname, journalEntries, today, navigate, showRecordToast]);
 
   const handlePrevMonth = () => {
     setCurrentDate((d) => new Date(d.getFullYear(), d.getMonth() - 1, 1));
@@ -271,11 +279,7 @@ function AppRoutes() {
       return;
     }
     if (cell.isToday) {
-      if (!hasGeminiKeySync()) {
-        alert('Add your Gemini API key in Settings before recording.');
-        return;
-      }
-      navigate('/record');
+      goNav('recording');
     }
   };
 
@@ -385,6 +389,12 @@ function AppRoutes() {
       alert('Add your Gemini API key in Settings before analyzing your journal.');
       return;
     }
+    if (journalEntries[today]) {
+      showRecordToast(
+        "You can't record. If you want, you can delete your journal and re-record it."
+      );
+      return;
+    }
     setLoadingMessage('Analyzing your thoughts…');
     try {
       const result = await analyzeText(text, geminiKey);
@@ -424,6 +434,14 @@ function AppRoutes() {
   return (
     <>
       {loadingMessage && <LoadingOverlay message={loadingMessage} />}
+      {recordToast && (
+        <div
+          role="alert"
+          className="fixed bottom-28 right-4 z-[100] w-[min(22rem,calc(100vw-2rem))] rounded-2xl border border-outline-variant/20 bg-surface-container-high/95 px-4 py-3 shadow-[0_8px_32px_rgba(0,0,0,0.35)] backdrop-blur-md md:bottom-auto md:top-28"
+        >
+          <p className="font-body text-sm leading-relaxed text-on-surface">{recordToast}</p>
+        </div>
+      )}
       <EntryModal
         entry={entryModal}
         onClose={() => setEntryModal(null)}
@@ -449,7 +467,6 @@ function AppRoutes() {
                 refreshEntries();
                 navigate('/mood');
               }}
-              pastJournalEntries={pastJournalEntries}
             />
           }
         />
