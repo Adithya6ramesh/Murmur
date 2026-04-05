@@ -17,6 +17,15 @@ export class AudioRecorder {
   }
 
   async startRecording() {
+    if (this.isRecording) {
+      throw new Error('Already recording');
+    }
+    if (this.stream) {
+      this.stream.getTracks().forEach((track) => track.stop());
+      this.stream = null;
+    }
+    this.mediaRecorder = null;
+
     this.stream = await navigator.mediaDevices.getUserMedia({
       audio: {
         echoCancellation: true,
@@ -35,14 +44,14 @@ export class AudioRecorder {
       }
     };
 
-    this.mediaRecorder.onstop = () => {
-      this.stopVisualization();
-    };
-
     this.audioChunks = [];
     this.mediaRecorder.start(100);
     this.isRecording = true;
     this.startVisualization();
+  }
+
+  isActive() {
+    return this.isRecording;
   }
 
   async stopRecording() {
@@ -64,6 +73,8 @@ export class AudioRecorder {
         this.stopVisualization();
         this.isRecording = false;
         this.audioChunks = [];
+        this.mediaRecorder = null;
+        this.stream = null;
         resolve(audioBlob);
       };
 

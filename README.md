@@ -70,7 +70,7 @@ WHISPER_EXECUTABLE_PATH=./whisper.cpp/main
 
 # Optional: Server Configuration
 HOST=0.0.0.0
-PORT=5000
+PORT=5001
 SECRET_KEY=your_secret_key_here
 ```
 
@@ -101,7 +101,7 @@ cd ..
 python run.py
 ```
 
-The API will be available at `http://localhost:5000`
+The API will be available at `http://localhost:5001`
 
 ## 📡 API Endpoints
 
@@ -184,7 +184,7 @@ Returns only the transcription without AI analysis.
 | `WHISPER_EXECUTABLE_PATH` | Path to Whisper executable | `./whisper.cpp/main` | Yes |
 | `FLASK_ENV` | Flask environment | `development` | No |
 | `HOST` | Server host | `0.0.0.0` | No |
-| `PORT` | Server port | `5000` | No |
+| `PORT` | Server port | `5001` | No |
 | `SECRET_KEY` | Flask secret key | Auto-generated | No |
 | `MAX_CONTENT_LENGTH` | Max upload size in bytes | `16777216` (16MB) | No |
 
@@ -205,17 +205,17 @@ Maximum file size: **16MB**
 
 ```bash
 # Health check
-curl http://localhost:5000/api/v1/health
+curl http://localhost:5001/api/v1/health
 
 # Upload and analyze audio
 curl -X POST \
   -F "audio=@path/to/your/audio.wav" \
-  http://localhost:5000/api/v1/journal/analyze
+  http://localhost:5001/api/v1/journal/analyze
 
 # Transcription only
 curl -X POST \
   -F "audio=@path/to/your/audio.wav" \
-  http://localhost:5000/api/v1/journal/transcript-only
+  http://localhost:5001/api/v1/journal/transcript-only
 ```
 
 ### Testing with Python
@@ -226,7 +226,7 @@ import requests
 # Test file upload
 with open('test_audio.wav', 'rb') as f:
     files = {'audio': f}
-    response = requests.post('http://localhost:5000/api/v1/journal/analyze', files=files)
+    response = requests.post('http://localhost:5001/api/v1/journal/analyze', files=files)
     print(response.json())
 ```
 

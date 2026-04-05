@@ -99,6 +99,7 @@ function buildEntrySearchText(entry) {
   if (ef) {
     if (ef.key_thoughts) parts.push(String(ef.key_thoughts));
     if (ef.feelings) parts.push(String(ef.feelings));
+    if (ef.murmurings || ef.whats_next) parts.push(String(ef.murmurings || ef.whats_next));
   }
   return parts.join(' ').trim();
 }
@@ -120,6 +121,7 @@ export function formatEntryBlockForPrompt(date, entry) {
     lines.push(`Mood: ${ef.mood || 'calm'}`);
     if (ef.feelings) lines.push(`Feelings: ${ef.feelings}`);
     if (ef.key_thoughts) lines.push(`Key thoughts: ${ef.key_thoughts}`);
+    if (ef.murmurings || ef.whats_next) lines.push(`Murmurings: ${ef.murmurings || ef.whats_next}`);
   }
   return [`### ${date}`, lines.filter(Boolean).join('\n')].join('\n');
 }

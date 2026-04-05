@@ -34,7 +34,7 @@ A beautiful, liquid glass UI frontend for the Murmur AI Voice Journaling applica
 ### Prerequisites
 - Node.js 18+ (for Vite)
 - Modern browser with Web Audio API and `MediaRecorder`
-- Murmur backend on `http://127.0.0.1:5000` (default API base)
+- Murmur backend on `http://127.0.0.1:5001` (default API base)
 
 ### Installation
 
@@ -46,7 +46,7 @@ npm run dev
 
 Open the URL Vite prints (usually `http://localhost:5173`). Production build: `npm run build`, then serve the `dist/` folder with any static file server.
 
-Optional: set `VITE_API_BASE` (e.g. in `.env`) to override the default `http://127.0.0.1:5000/api/v1` used by `src/lib/journalApi.js`.
+Optional: set `VITE_API_BASE` (e.g. in `.env`) to override the default `http://127.0.0.1:5001/api/v1` used by `src/lib/journalApi.js`.
 
 ## 📱 User Flow
 
@@ -86,7 +86,7 @@ The frontend integrates with the Murmur backend API:
 ## 🔧 Configuration
 
 ### Backend URL
-Default: `http://127.0.0.1:5000/api/v1` in `src/lib/journalApi.js`. Override with env `VITE_API_BASE` if needed.
+Default: `http://127.0.0.1:5001/api/v1` in `src/lib/journalApi.js`. Override with env `VITE_API_BASE` if needed.
 
 ### Audio
 Recording options live in `src/lib/audioRecorder.js` (`getUserMedia` / `MediaRecorder`).
@@ -158,7 +158,7 @@ Update CSS variables in `src/styles/main.css`:
    - Try refreshing the page
 
 2. **Backend Connection Failed**
-   - Verify backend is running on port 5000
+   - Verify backend is running on port 5001
    - Check CORS settings
    - Confirm API endpoints are accessible
 

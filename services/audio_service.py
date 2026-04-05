@@ -6,6 +6,8 @@ import logging
 import uuid
 from pathlib import Path
 
+from config.settings import Config
+
 logger = logging.getLogger(__name__)
 
 # Magic bytes for supported audio formats
@@ -49,9 +51,10 @@ class AudioService:
     def _initialize_whisper(self):
         try:
             import whisper
-            logger.info("Loading Whisper model...")
-            self.whisper_model = whisper.load_model("tiny")
-            logger.info("OpenAI Whisper model loaded successfully")
+            name = (Config.WHISPER_MODEL_NAME or "small.en").strip()
+            logger.info("Loading Whisper model: %s", name)
+            self.whisper_model = whisper.load_model(name)
+            logger.info("OpenAI Whisper model loaded successfully (%s)", name)
         except ImportError:
             logger.error("openai-whisper not installed. pip install openai-whisper")
             self.whisper_model = None

@@ -88,7 +88,7 @@ def test_transcript_only(base_url, audio_file_path):
 
 def main():
     """Main test function"""
-    base_url = "http://localhost:5000"
+    base_url = "http://localhost:5001"
     
     if len(sys.argv) > 1:
         base_url = sys.argv[1]

@@ -1,4 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import {
+  Navigate,
+  Outlet,
+  Route,
+  Routes,
+  useLocation,
+  useNavigate,
+} from 'react-router-dom';
 import { AudioRecorder } from './lib/audioRecorder.js';
 import { getAllJournalEntries, getJournalDb, saveJournalEntry } from './lib/journalDb.js';
 import { analyzeText, transcribeAudio, verifyGeminiApiKey } from './lib/journalApi.js';
@@ -53,11 +61,12 @@ function getMoodDescription(mood) {
   return "You're in a steady, balanced place—a quiet place to listen inward.";
 }
 
-export default function App() {
+function AppRoutes() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const [journalEntries, setJournalEntries] = useState({});
 
-  const [showSplash, setShowSplash] = useState(true);
-  const [view, setView] = useState('home');
   const [currentDate, setCurrentDate] = useState(() => new Date());
   const [entryModal, setEntryModal] = useState(null);
 
@@ -93,6 +102,7 @@ export default function App() {
   }, []);
 
   const recorderRef = useRef(null);
+  const addRecordingStartLockRef = useRef(false);
   const getRecorder = useCallback(() => {
     if (!recorderRef.current) {
       recorderRef.current = new AudioRecorder((heights) => setWaveHeights(heights));
@@ -100,10 +110,19 @@ export default function App() {
     return recorderRef.current;
   }, []);
 
+  const prevPathRef = useRef(location.pathname);
   useEffect(() => {
-    const t = setTimeout(() => setShowSplash(false), 4000);
-    return () => clearTimeout(t);
-  }, []);
+    const prev = prevPathRef.current;
+    prevPathRef.current = location.pathname;
+    if (prev === '/analysis' && location.pathname !== '/analysis') {
+      addRecordingStartLockRef.current = false;
+      setIsAddingRecording(false);
+      const rec = recorderRef.current;
+      if (rec?.isActive()) {
+        rec.stopRecording().catch(() => {});
+      }
+    }
+  }, [location.pathname]);
 
   useEffect(() => {
     migrateLegacyGeminiKeyToEncrypted()
@@ -198,24 +217,24 @@ export default function App() {
   };
   const moodDescription = getMoodDescription(todayMood);
 
-  const navigate = useCallback(
+  const goNav = useCallback(
     (nav) => {
-      if (nav === 'home') setView('home');
+      if (nav === 'home') navigate('/');
       if (nav === 'recording') {
         if (!hasGeminiKeySync()) {
           alert('Add your Gemini API key in Settings before recording.');
           return;
         }
-        setView('recording');
+        navigate('/record');
       }
-      if (nav === 'settings') setView('settings');
-      if (nav === 'chat') setView('chat');
+      if (nav === 'settings') navigate('/settings');
+      if (nav === 'chat') navigate('/chat');
       if (nav === 'mood') {
-        setView('mood');
+        navigate('/mood');
         refreshEntries();
       }
     },
-    [refreshEntries]
+    [navigate, refreshEntries]
   );
 
   const handlePrevMonth = () => {
@@ -238,7 +257,7 @@ export default function App() {
         alert('Add your Gemini API key in Settings before recording.');
         return;
       }
-      setView('recording');
+      navigate('/record');
     }
   };
 
@@ -256,12 +275,12 @@ export default function App() {
       setTranscript(text);
       setAnalysis(null);
       setAnalysisVisible(false);
-      setView('analysis');
+      navigate('/analysis');
     } catch (error) {
       console.error(error);
       let msg = 'Failed to process audio recording.';
       if (error.message?.includes('Failed to fetch')) {
-        msg = 'Cannot connect to backend. Ensure Murmur is running on port 5000.';
+        msg = 'Cannot connect to backend. Ensure Murmur is running on port 5001.';
       }
       alert(`${msg}\n\n${error.message || ''}`);
     } finally {
@@ -311,13 +330,19 @@ export default function App() {
   };
 
   const toggleAddRecording = async () => {
+    if (loadingMessage) return;
+    if (isRecording) return;
     const rec = getRecorder();
     if (!isAddingRecording) {
+      if (addRecordingStartLockRef.current) return;
+      addRecordingStartLockRef.current = true;
       try {
         await rec.startRecording();
         setIsAddingRecording(true);
       } catch (e) {
         alert(`Failed to start recording: ${e.message}`);
+      } finally {
+        addRecordingStartLockRef.current = false;
       }
     } else {
       try {
@@ -366,101 +391,142 @@ export default function App() {
   };
 
   const activeNav =
-    view === 'settings'
+    location.pathname === '/settings'
       ? 'settings'
-      : view === 'chat'
+      : location.pathname === '/chat'
         ? 'chat'
-        : view === 'recording'
+        : location.pathname === '/record'
           ? 'recording'
-          : view === 'mood'
+          : location.pathname === '/mood'
             ? 'mood'
             : 'home';
 
-  if (showSplash) {
-    return <SplashScreen />;
-  }
+  const showFab = location.pathname === '/';
 
   return (
     <>
       {loadingMessage && <LoadingOverlay message={loadingMessage} />}
       <EntryModal entry={entryModal} onClose={() => setEntryModal(null)} />
 
-      {view === 'analysis' ? (
-        <AnalysisPage
-          transcript={transcript}
-          onTranscriptChange={setTranscript}
-          onSend={handleAnalyze}
-          onAddRecording={toggleAddRecording}
-          analysisVisible={analysisVisible}
-          analysis={analysis}
-          isAddingRecording={isAddingRecording}
-          onHome={() => setView('home')}
-          onMood={() => {
-            refreshEntries();
-            setView('mood');
-          }}
-          inspectOldChatEnabled={userSettings.inspectOldChat}
-          pastJournalEntries={pastJournalEntries}
-        />
-      ) : (
-        <AppShell
-          activeNav={activeNav}
-          onNavigate={navigate}
-          showFab={view === 'home'}
-          onFabRecord={() => navigate('recording')}
-          hideBottomNav={false}
-          showProfileNudge={showProfileNudge}
-          onDismissProfileNudge={dismissProfileNudge}
-        >
-          {view === 'home' && (
-            <HomePage
-              currentDate={currentDate}
-              journalEntries={journalEntries}
-              onPrevMonth={handlePrevMonth}
-              onNextMonth={handleNextMonth}
-              onDayClick={handleDayClick}
-              weeklyResonanceLabel={weeklyLabel}
-              weeklyResonanceInsight={weeklyInsight}
-              weeklyBarHeights={weeklyBarHeights}
-              weeklyPeakBarIndex={weeklyPeakIdx}
-              userDisplayName={userSettings.displayName?.trim() || 'friend'}
-              onOpenJournalChat={() => setView('chat')}
-            />
-          )}
-          {view === 'recording' && (
-            <RecordPage
-              isRecording={isRecording}
+      <Routes>
+        <Route
+          path="/analysis"
+          element={
+            <AnalysisPage
+              transcript={transcript}
+              onTranscriptChange={setTranscript}
+              onSend={handleAnalyze}
+              onAddRecording={toggleAddRecording}
+              analysisVisible={analysisVisible}
+              analysis={analysis}
+              isAddingRecording={isAddingRecording}
               waveHeights={waveHeights}
-              onToggleRecord={toggleRecording}
+              addRecordingDisabled={Boolean(loadingMessage)}
+              onHome={() => navigate('/')}
+              onMood={() => {
+                refreshEntries();
+                navigate('/mood');
+              }}
+              inspectOldChatEnabled={userSettings.inspectOldChat}
+              pastJournalEntries={pastJournalEntries}
             />
-          )}
-          {view === 'mood' && (
-            <MoodPage
-              moodSeries={moodSeries}
-              filter={moodFilter}
-              onFilterChange={setMoodFilter}
-              todayMood={todayMood}
-              moodDescription={moodDescription}
-              onHome={() => setView('home')}
-            />
-          )}
-          {view === 'settings' && (
-            <SettingsPage
-              settings={userSettings}
-              onSave={updateUserSettings}
-              onPersistGeminiKey={persistGeminiFromUser}
-              onBack={() => setView('home')}
-            />
-          )}
-          {view === 'chat' && (
-            <JournalChatPage
-              journalEntries={journalEntries}
-              resolveGeminiKey={getGeminiApiKeyForRequest}
-              onBack={() => setView('home')}
-            />
-          )}
-        </AppShell>
-      )}
+          }
+        />
+        <Route
+          element={
+            <AppShell
+              activeNav={activeNav}
+              onNavigate={goNav}
+              showFab={showFab}
+              onFabRecord={() => goNav('recording')}
+              hideBottomNav={false}
+              showProfileNudge={showProfileNudge}
+              onDismissProfileNudge={dismissProfileNudge}
+            >
+              <Outlet />
+            </AppShell>
+          }
+        >
+          <Route
+            path="/"
+            element={
+              <HomePage
+                currentDate={currentDate}
+                journalEntries={journalEntries}
+                onPrevMonth={handlePrevMonth}
+                onNextMonth={handleNextMonth}
+                onDayClick={handleDayClick}
+                weeklyResonanceLabel={weeklyLabel}
+                weeklyResonanceInsight={weeklyInsight}
+                weeklyBarHeights={weeklyBarHeights}
+                weeklyPeakBarIndex={weeklyPeakIdx}
+                userDisplayName={userSettings.displayName?.trim() || 'friend'}
+                onOpenJournalChat={() => navigate('/chat')}
+              />
+            }
+          />
+          <Route
+            path="/record"
+            element={
+              <RecordPage
+                isRecording={isRecording}
+                waveHeights={waveHeights}
+                onToggleRecord={toggleRecording}
+              />
+            }
+          />
+          <Route
+            path="/mood"
+            element={
+              <MoodPage
+                moodSeries={moodSeries}
+                filter={moodFilter}
+                onFilterChange={setMoodFilter}
+                todayMood={todayMood}
+                moodDescription={moodDescription}
+                onHome={() => navigate('/')}
+              />
+            }
+          />
+          <Route
+            path="/settings"
+            element={
+              <SettingsPage
+                settings={userSettings}
+                onSave={updateUserSettings}
+                onPersistGeminiKey={persistGeminiFromUser}
+                onBack={() => navigate('/')}
+              />
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <JournalChatPage
+                journalEntries={journalEntries}
+                resolveGeminiKey={getGeminiApiKeyForRequest}
+                onBack={() => navigate('/')}
+              />
+            }
+          />
+        </Route>
+        <Route path="*" element={<Navigate to="/" replace />} />
+      </Routes>
     </>
   );
+}
+
+export default function App() {
+  const [showSplash, setShowSplash] = useState(true);
+
+  useEffect(() => {
+    const t = setTimeout(() => setShowSplash(false), 4000);
+    return () => clearTimeout(t);
+  }, []);
+
+  if (showSplash) {
+    return <SplashScreen />;
+  }
+
+  return <AppRoutes />;
 }

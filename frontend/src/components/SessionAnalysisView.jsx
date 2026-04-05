@@ -22,8 +22,13 @@ function renderFeelingsParagraph(text) {
     });
 }
 
+function murmuringsText(ef) {
+  if (!ef) return '';
+  return String(ef.murmurings ?? ef.whats_next ?? '').trim();
+}
+
 /**
- * Read-only session analysis grid (What happened, Feelings, Key thoughts, What’s next).
+ * Read-only session analysis grid (What happened, Feelings, Key thoughts, Murmurings).
  * Used on the analysis page and when reopening a saved day from the calendar.
  */
 export default function SessionAnalysisView({ analysis, onBackToJournal, showFooterCta = true }) {
@@ -32,8 +37,8 @@ export default function SessionAnalysisView({ analysis, onBackToJournal, showFoo
     () => splitKeyThoughts(analysis?.emotional_feedback?.key_thoughts),
     [analysis]
   );
-  const whatsParts = useMemo(
-    () => splitSentences(analysis?.emotional_feedback?.whats_next),
+  const murmuringsParts = useMemo(
+    () => splitSentences(murmuringsText(analysis?.emotional_feedback)),
     [analysis]
   );
   const nuancePills = useMemo(() => resonanceNuancePills(mood), [mood]);
@@ -104,14 +109,14 @@ export default function SessionAnalysisView({ analysis, onBackToJournal, showFoo
       </section>
 
       <section className="rounded-3xl border border-white/[0.06] bg-[#1a1a1a] p-6 shadow-xl lg:col-span-8 lg:p-8">
-        <h2 className="mb-6 font-headline text-lg font-bold text-white">What&apos;s next</h2>
+        <h2 className="mb-6 font-headline text-lg font-bold text-white">Murmurings</h2>
         <div className="space-y-3 font-body text-sm leading-relaxed text-zinc-400">
-          {whatsParts.length > 0 ? (
-            whatsParts.map((sentence, i) => (
+          {murmuringsParts.length > 0 ? (
+            murmuringsParts.map((sentence, i) => (
               <p
                 key={i}
                 className={
-                  i === whatsParts.length - 1
+                  i === murmuringsParts.length - 1
                     ? 'text-[#fda4af]/95 [&_strong]:font-semibold [&_strong]:text-[#fda4af]'
                     : ''
                 }
@@ -120,7 +125,7 @@ export default function SessionAnalysisView({ analysis, onBackToJournal, showFoo
               </p>
             ))
           ) : (
-            <p>{analysis.emotional_feedback?.whats_next || '—'}</p>
+            <p>{murmuringsText(analysis?.emotional_feedback) || '—'}</p>
           )}
         </div>
         {showFooterCta && onBackToJournal && (

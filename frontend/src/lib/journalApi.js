@@ -1,10 +1,11 @@
 const API_BASE =
   typeof import.meta !== 'undefined' && import.meta.env?.VITE_API_BASE
     ? import.meta.env.VITE_API_BASE.replace(/\/$/, '')
-    : 'http://127.0.0.1:5000/api/v1';
+    : 'http://127.0.0.1:5001/api/v1';
 
 const BACKEND_HINT =
-  'Start the API server from the Murmur project root: python run.py (leave that terminal open). It should listen on port 5000.';
+  'Start the API from the Murmur project folder: python run.py — leave that terminal running. You should see "Running on http://127.0.0.1:5001". ' +
+  'If you open the app from another device, set HOST=0.0.0.0 in .env and point VITE_API_BASE at your PC’s LAN URL (e.g. http://192.168.x.x:5001/api/v1).';
 
 /** Optional shared secret for the Murmur API (must match server MURMUR_API_SECRET). Never commit real values. */
 function murmurServiceHeaders() {

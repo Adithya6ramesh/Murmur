@@ -140,6 +140,21 @@ def _normalize_keywords_list(raw, transcript=None):
                 break
     return out[:8]
 
+
+def _normalize_emotional_feedback(emotional_feedback):
+    """Map legacy keys, coerce key_thoughts list→string, ensure murmurings exists."""
+    if not isinstance(emotional_feedback, dict):
+        return {}
+    out = dict(emotional_feedback)
+    if out.get('murmurings') in (None, '') and out.get('whats_next'):
+        out['murmurings'] = out['whats_next']
+    kt = out.get('key_thoughts')
+    if isinstance(kt, list):
+        parts = [str(x).strip() for x in kt if str(x).strip()]
+        out['key_thoughts'] = ' '.join(parts) if parts else ''
+    return out
+
+
 _GEMINI_LOCK = threading.Lock()
 
 
@@ -198,50 +213,44 @@ class GeminiService:
             str: Formatted prompt for Gemini
         """
         return f"""
-You are the most supportive best friend analyzing a personal journal entry. Be warm, caring, and genuinely encouraging.
-
-Analyze this journal entry and respond with ONLY the JSON object - no code blocks, no extra text, just the raw JSON:
+You reflect someone's journal back to them in a human, non-generic way. Respond with ONLY valid JSON—no markdown fences, no commentary.
 
 {{
     "summary": {{
         "key_points": [
-            "Consolidated summary point 1 from their input text",
-            "Consolidated summary point 2 from their input text", 
-            "Consolidated summary point 3 from their input text"
+            "I … (first-person; one sentence per bullet)",
+            "I …",
+            "I …",
+            "I …",
+            "I …",
+            "I … (include a 6th only if needed for coverage)"
         ]
     }},
     "emotional_feedback": {{
-        "key_thoughts": "Brief insight about their thinking patterns - casual and friendly tone",
-        "feelings": "Acknowledge their emotions warmly - like a caring friend who really gets it",
-        "whats_next": "Long, heartfelt encouragement that pours out genuine support and optimism. Write like you're that friend who always lifts their spirits. Be emotionally rich, use casual language, celebrate their wins or comfort their struggles. Make them feel heard and cared for. This should be substantial and pour your heart out.",
+        "key_thoughts": "2–4 short sentences. Each sentence must tie to something concrete they actually said—patterns, tensions, or facts they named. No therapy jargon, no praise for 'journaling', no invented events.",
+        "feelings": "Warm, specific acknowledgment of how they seem to feel—ground it in their words, second person (you). One short paragraph.",
+        "murmurings": "2–4 short sentences or one tight paragraph. Casual, like a friend texting—specific to THIS entry only. No motivational poster lines, no 'you've got this', no listing three generic strengths, no corporate-coach tone. Light humor is OK if it fits. Sound like a real person, not an AI.",
         "mood": "calm"
     }},
     "keywords": [
-        "Most important theme or entity from their words (rank 1)",
-        "Second most important theme or concept (rank 2)",
-        "Third ranked keyword or phrase (rank 3)",
-        "Fourth ranked keyword (rank 4)",
-        "Fifth ranked keyword (rank 5)",
-        "Sixth ranked keyword (rank 6)",
-        "Seventh ranked keyword (rank 7)",
-        "Eighth ranked keyword (rank 8)"
+        "Eight items, most important first, 2–5 words each, drawn from their vocabulary"
     ]
 }}
 
 CRITICAL RULES:
-- Return ONLY the JSON object, no markdown, no code blocks, no extra text
-- Summary key_points: Extract and consolidate the main content from their input text into clear bullet points
-- Be their most caring best friend - casual, warm, emotionally supportive
-- "whats_next" must be long and emotionally rich - really pour out encouragement
-- emotional_feedback.mood MUST be exactly one of these strings (lowercase): "ease", "tension", or "calm"
-  - "ease" = uplifted, hopeful, light, relieved, or clearly positive emotional tone
-  - "calm" = steady, balanced, neutral, reflective without strong swing either way
-  - "tension" = stressed, heavy, worried, sad, angry, or clearly difficult emotional load
-- keywords: Exactly 8 entries, ordered most important first. Each must be a short phrase or single word (2–5 words max) capturing main topics, people, places, feelings, or situations from THEIR text—not generic filler. Use their vocabulary when possible.
-- No generic AI responses - be genuinely human and caring
-- Avoid special characters that might break JSON parsing
+- Return ONLY the JSON object
+- summary.key_points: Exactly 5 or 6 strings. Each must be first person (I / I'm / I've / I feel …) and summarize part of their entry—not third person ("they" / "the user").
+- key_thoughts: Factual and tight—ground every claim in the transcript. If you cannot tie a sentence to their words, omit it.
+- murmurings: Short. Specific. Human. Ban: "journey", "hold space", "show up for yourself", "proud of you for", "remember to prioritize", "self-care", "empower", "mindful", unless they used those words. Prefer plain language.
+- emotional_feedback.mood MUST be exactly one of: "ease", "tension", or "calm" (lowercase)
+  - "ease" = clearly lighter, hopeful, relieved, or positive
+  - "calm" = steady, mixed, or neutral reflection
+  - "tension" = stress, weight, conflict, sadness, anger, or difficulty
+- keywords: Exactly 8 distinct strings, topics/themes from their text—not filler
+- Escape quotes inside strings so JSON parses. Avoid emoji if it could break JSON.
 
-Journal entry: "{transcript}"
+Journal entry:
+{json.dumps(transcript)}
 """
     
     def analyze_journal_entry(self, transcript, request_api_key=None):
@@ -301,8 +310,8 @@ Journal entry: "{transcript}"
                 if not all(key in analysis for key in required_keys):
                     logger.error(f"Missing required keys in response: {list(analysis.keys())}")
                     return False, "Invalid response structure from Gemini", None
-                emotional_feedback = analysis.get('emotional_feedback', {})
-                required_emotional_keys = ['key_thoughts', 'feelings', 'whats_next', 'mood']
+                emotional_feedback = _normalize_emotional_feedback(analysis.get('emotional_feedback', {}))
+                required_emotional_keys = ['key_thoughts', 'feelings', 'murmurings', 'mood']
                 missing_keys = [key for key in required_emotional_keys if key not in emotional_feedback]
                 if missing_keys:
                     logger.error(f"Missing emotional feedback keys: {missing_keys}")
@@ -458,15 +467,17 @@ Do not add a separate "Tone:" section."""
         return {
             "summary": {
                 "key_points": [
-                    "• Journal entry processed successfully",
-                    "• Thoughts and feelings captured",
-                    "• Ready for reflection and growth"
+                    "I put something down in my journal today.",
+                    "I'm processing it without a full structured read-back.",
+                    "I'll come back to this when I want to reflect again.",
+                    "I left room for whatever comes next.",
+                    "I'm still here with whatever I wrote.",
                 ]
             },
             "emotional_feedback": {
-                "key_thoughts": "I notice you're taking time for self-reflection and processing your experiences through journaling, which shows real emotional intelligence.",
-                "feelings": "You seem reflective and thoughtful, showing a genuine desire to understand yourself better.",
-                "whats_next": "Hey, I just want to say how awesome it is that you're taking time to journal and reflect on your thoughts! That takes real courage and shows you're committed to understanding yourself better. Keep this amazing practice going - you're doing something really meaningful for your personal growth. I'm genuinely proud of you for making this space for yourself. 💙",
+                "key_thoughts": "You named what's on your mind in this entry. The details are yours to revisit when you're ready.",
+                "feelings": "Sounds like you're sitting with a mix of thoughts—nothing wrong with letting that be enough for now.",
+                "murmurings": "If the formatted view glitched, your words are still what matter. Re-run analysis when the connection's stable.",
                 "mood": "calm"
             },
             "keywords": _normalize_keywords_list(None, transcript),

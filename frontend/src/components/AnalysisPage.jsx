@@ -10,6 +10,8 @@ export default function AnalysisPage({
   analysisVisible,
   analysis,
   isAddingRecording,
+  waveHeights = [],
+  addRecordingDisabled = false,
   onHome,
   onMood,
   inspectOldChatEnabled = false,
@@ -67,25 +69,59 @@ export default function AnalysisPage({
               rows={8}
               className="min-h-[160px] w-full resize-none rounded-2xl border border-white/[0.08] bg-[#0d0d0d] px-4 py-3 font-body text-base leading-relaxed text-zinc-200 placeholder:text-zinc-600 focus:border-[#accec5]/35 focus:outline-none"
             />
-            <div className="mt-6 flex items-center justify-between gap-4">
-              <button
-                type="button"
-                onClick={onAddRecording}
-                title={isAddingRecording ? 'Stop recording' : 'Add more recording'}
-                className={`flex h-12 w-12 items-center justify-center rounded-full transition ${
-                  isAddingRecording ? 'bg-[#ffb4a1]/15 text-[#ffb4a1]' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
-                }`}
-              >
-                <span className="material-symbols-outlined">{isAddingRecording ? 'stop' : 'mic'}</span>
-              </button>
-              <button
-                type="button"
-                onClick={onSend}
-                className="flex h-12 w-12 items-center justify-center rounded-full bg-[#accec5] text-[#163630] shadow-[0_0_32px_rgba(172,206,197,0.25)] transition hover:brightness-110 active:scale-90"
-                title="Analyze your words"
-              >
-                <span className="material-symbols-outlined">arrow_forward</span>
-              </button>
+            <div className="mt-6 space-y-4">
+              {isAddingRecording && (
+                <div className="flex flex-col items-stretch gap-3">
+                  <div className="flex h-12 w-full items-center justify-center gap-1.5 overflow-hidden rounded-2xl border border-white/[0.06] bg-[#0d0d0d] px-4">
+                    {waveHeights.map((h, i) => (
+                      <div
+                        key={i}
+                        className="w-1 rounded-full bg-[#accec5]/60"
+                        style={{
+                          height: `${h}px`,
+                          opacity: 1,
+                          background:
+                            h > 35
+                              ? 'linear-gradient(to top, #accec5, #84a59d)'
+                              : 'rgba(172, 206, 197, 0.35)',
+                        }}
+                      />
+                    ))}
+                  </div>
+                  <p className="flex items-center justify-center gap-2 font-body text-xs text-[#ffb4a1]/90">
+                    <span className="inline-block h-2 w-2 animate-pulse rounded-full bg-[#ffb4a1]" />
+                    Recording… tap the mic again to stop and add to your words
+                  </p>
+                </div>
+              )}
+              <div className="flex items-center justify-between gap-4">
+                <button
+                  type="button"
+                  onClick={onAddRecording}
+                  disabled={addRecordingDisabled && !isAddingRecording}
+                  title={
+                    addRecordingDisabled && !isAddingRecording
+                      ? 'Wait for transcription to finish'
+                      : isAddingRecording
+                        ? 'Stop recording'
+                        : 'Add more recording'
+                  }
+                  className={`flex h-12 w-12 shrink-0 items-center justify-center rounded-full transition disabled:cursor-not-allowed disabled:opacity-40 ${
+                    isAddingRecording ? 'bg-[#ffb4a1]/15 text-[#ffb4a1]' : 'bg-zinc-800 text-zinc-400 hover:bg-zinc-700'
+                  }`}
+                >
+                  <span className="material-symbols-outlined">{isAddingRecording ? 'stop' : 'mic'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={onSend}
+                  disabled={addRecordingDisabled || isAddingRecording}
+                  className="flex h-12 w-12 items-center justify-center rounded-full bg-[#accec5] text-[#163630] shadow-[0_0_32px_rgba(172,206,197,0.25)] transition hover:brightness-110 active:scale-90 disabled:cursor-not-allowed disabled:opacity-40"
+                  title="Analyze your words"
+                >
+                  <span className="material-symbols-outlined">arrow_forward</span>
+                </button>
+              </div>
             </div>
           </div>
         )}

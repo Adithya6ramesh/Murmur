@@ -27,12 +27,14 @@ class Config:
 
     WHISPER_MODEL_PATH = os.environ.get('WHISPER_MODEL_PATH', './models/ggml-base.bin')
     WHISPER_EXECUTABLE_PATH = os.environ.get('WHISPER_EXECUTABLE_PATH', './whisper.cpp/main')
+    # openai-whisper checkpoint: tiny, base, small, small.en, medium, large, etc.
+    WHISPER_MODEL_NAME = os.environ.get('WHISPER_MODEL_NAME', 'small.en')
 
     MAX_TEXT_LENGTH = int(os.environ.get('MAX_TEXT_LENGTH', 50_000))
     MAX_JOURNAL_CONTEXT_LENGTH = int(os.environ.get('MAX_JOURNAL_CONTEXT_LENGTH', 120_000))
 
     HOST = os.environ.get('HOST', '127.0.0.1')
-    PORT = int(os.environ.get('PORT', 5000))
+    PORT = int(os.environ.get('PORT', 5001))
 
 
 class DevelopmentConfig(Config):

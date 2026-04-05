@@ -3,8 +3,8 @@
 Murmur AI Voice Journaling App - Application Entry Point
 
 For production deployments use a proper WSGI server:
-  Linux/macOS:  gunicorn -w 4 -b 0.0.0.0:5000 "app:create_app('production')"
-  Windows:      waitress-serve --host=0.0.0.0 --port=5000 --call "app:create_app"
+  Linux/macOS:  gunicorn -w 4 -b 0.0.0.0:5001 "app:create_app('production')"
+  Windows:      waitress-serve --host=0.0.0.0 --port=5001 --call "app:create_app"
 """
 import os
 import sys
@@ -38,8 +38,8 @@ def main():
         print(
             "[WARNING] You are using the Flask development server.\n"
             "          For production, use gunicorn (Linux/macOS) or waitress (Windows):\n"
-            '          gunicorn -w 4 -b 0.0.0.0:5000 "app:create_app(\'production\')"\n'
-            '          waitress-serve --host=0.0.0.0 --port=5000 --call "app:create_app"\n',
+            '          gunicorn -w 4 -b 0.0.0.0:5001 "app:create_app(\'production\')"\n'
+            '          waitress-serve --host=0.0.0.0 --port=5001 --call "app:create_app"\n',
             file=sys.stderr,
         )
 

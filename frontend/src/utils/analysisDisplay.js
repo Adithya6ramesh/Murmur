@@ -108,7 +108,7 @@ export function entryToSearchableText(entry) {
   if (ef) {
     if (ef.key_thoughts) bits.push(ef.key_thoughts);
     if (ef.feelings) bits.push(ef.feelings);
-    if (ef.whats_next) bits.push(ef.whats_next);
+    if (ef.murmurings || ef.whats_next) bits.push(ef.murmurings || ef.whats_next);
   }
   return bits.filter(Boolean).join('\n\n');
 }

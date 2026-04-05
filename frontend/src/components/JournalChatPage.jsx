@@ -117,7 +117,7 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
     } catch (e) {
       const msg =
         e.message?.includes('Failed to fetch') || e.message?.includes('NetworkError')
-          ? 'Could not reach the server. Is the Murmur backend running on port 5000?'
+          ? 'Could not reach the server. Is the Murmur backend running on port 5001?'
           : e.message || 'Something went wrong.';
       setMessages((m) => [...m, { role: 'assistant', text: msg }]);
     } finally {
