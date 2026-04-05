@@ -8,7 +8,12 @@ import {
   useNavigate,
 } from 'react-router-dom';
 import { AudioRecorder } from './lib/audioRecorder.js';
-import { getAllJournalEntries, getJournalDb, saveJournalEntry } from './lib/journalDb.js';
+import {
+  deleteJournalEntry,
+  getAllJournalEntries,
+  getJournalDb,
+  saveJournalEntry,
+} from './lib/journalDb.js';
 import { analyzeText, transcribeAudio, verifyGeminiApiKey } from './lib/journalApi.js';
 import {
   buildMoodSeriesFromEntries,
@@ -154,6 +159,20 @@ function AppRoutes() {
     setJournalEntries(entries);
     setMoodSeries(buildMoodSeriesFromEntries(entries));
   }, []);
+
+  const handleDeleteJournalEntry = useCallback(
+    async (date) => {
+      try {
+        await deleteJournalEntry(date);
+        await refreshEntries();
+        setEntryModal(null);
+      } catch (e) {
+        console.error(e);
+        alert('Could not delete this entry. Try again.');
+      }
+    },
+    [refreshEntries]
+  );
 
   const filteredForWeek = useMemo(
     () => getFilteredMoodData(moodSeries, 'week'),
@@ -406,7 +425,11 @@ function AppRoutes() {
   return (
     <>
       {loadingMessage && <LoadingOverlay message={loadingMessage} />}
-      <EntryModal entry={entryModal} onClose={() => setEntryModal(null)} />
+      <EntryModal
+        entry={entryModal}
+        onClose={() => setEntryModal(null)}
+        onDelete={handleDeleteJournalEntry}
+      />
 
       <Routes>
         <Route

@@ -111,6 +111,12 @@ export async function saveJournalEntry(date, entry) {
   });
 }
 
+/** Remove a saved journal row for this calendar day (primary key = date string). */
+export async function deleteJournalEntry(date) {
+  const db = await getJournalDb();
+  await db.entries.delete(date);
+}
+
 export async function saveMoodEntry(date, mood) {
   const db = await getJournalDb();
   const existing = await db.entries.get(date);
