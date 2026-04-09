@@ -1,313 +1,161 @@
-# 🎙️ Murmur - AI Voice Journaling Backend
+# Murmur — AI voice journaling (Flask backend + React frontend)
 
-A clean, production-ready Flask backend for an AI-powered voice journaling application. Murmur converts voice recordings into text and provides thoughtful, encouraging analysis using Google Gemini AI.
+Flask API that transcribes voice with **OpenAI Whisper** (Python package) and analyzes journal text with **Google Gemini**. A Vite/React app in `frontend/` talks to this server.
 
-## ✨ Features
+## Features
 
-- **🎵 Audio Processing**: Support for multiple audio formats (WAV, MP3, FLAC, M4A, OGG, WebM)
-- **🗣️ Speech-to-Text**: High-quality transcription using Whisper.cpp
-- **🤖 AI Analysis**: Emotional insights and encouraging feedback via Google Gemini
-- **💙 Supportive Tone**: Warm, friendly responses that encourage and support users
-- **🛡️ Production Ready**: Comprehensive error handling, validation, and logging
-- **📊 Health Monitoring**: Built-in health checks and service monitoring
+- **Audio**: Common formats (WAV, MP3, FLAC, M4A, OGG, WebM) with validation and size limits
+- **Speech-to-text**: Local transcription via `openai-whisper` (model name from env, e.g. `small.en`)
+- **AI analysis**: Structured summaries, feelings, key thoughts, and **murmurings** (warm, human follow-up) via Gemini
+- **Health & errors**: Health check, logging, configurable Gemini HTTP timeouts
 
-## 🏗️ Architecture
+## Architecture
 
 ```
-murmur/
-├── app/                    # Flask application
-│   ├── __init__.py        # App factory
-│   └── routes.py          # API endpoints
-├── config/                 # Configuration management
-│   └── settings.py        # Environment-based config
-├── services/              # Business logic services
-│   ├── audio_service.py   # Whisper.cpp integration
-│   └── gemini_service.py  # Google Gemini AI integration
-├── utils/                 # Utility functions
-│   ├── validators.py      # File validation
-│   └── responses.py       # Standardized API responses
-├── uploads/               # Temporary audio file storage
-├── requirements.txt       # Python dependencies
-├── run.py                # Application entry point
-└── README.md             # This file
+Murmur/
+├── app/                    # Flask app (routes, CORS)
+├── config/settings.py      # Environment-based config
+├── services/
+│   ├── audio_service.py    # Whisper transcription
+│   └── gemini_service.py   # Gemini analysis / ask / key verify
+├── utils/                  # Validators, API response helpers
+├── frontend/               # Vite + React UI
+├── run.py                  # Entry point
+├── requirements.txt
+└── .env.example            # Copy to .env
 ```
 
-## 🚀 Quick Start
+## Quick start
 
 ### Prerequisites
 
-- Python 3.11+
-- Google Gemini API key
-- Whisper.cpp compiled binary and model
+- **Python 3.11+**
+- **FFmpeg** (required by Whisper for decoding many audio formats)
+- **Google Gemini API key** ([Google AI Studio](https://aistudio.google.com/))
 
-### 1. Clone and Setup
+### Backend
 
 ```bash
 git clone <repository-url>
-cd murmur
+cd Murmur
 python -m venv venv
-source venv/bin/activate  # On Windows: venv\Scripts\activate
+# Windows: venv\Scripts\activate
+source venv/bin/activate
 pip install -r requirements.txt
-```
-
-### 2. Environment Configuration
-
-Copy the example environment file and configure it:
-
-```bash
 cp .env.example .env
-```
-
-Edit `.env` with your configuration:
-
-```env
-# Required: Google Gemini API Key
-GEMINI_API_KEY=your_gemini_api_key_here
-
-# Whisper.cpp Configuration
-WHISPER_MODEL_PATH=./models/ggml-base.bin
-WHISPER_EXECUTABLE_PATH=./whisper.cpp/main
-
-# Optional: Server Configuration
-HOST=0.0.0.0
-PORT=5001
-SECRET_KEY=your_secret_key_here
-```
-
-### 3. Setup Whisper.cpp
-
-Download and compile Whisper.cpp:
-
-```bash
-# Clone Whisper.cpp
-git clone https://github.com/ggerganov/whisper.cpp.git
-cd whisper.cpp
-
-# Compile (requires make and gcc/clang)
-make
-
-# Download a model (base model recommended for balance of speed/accuracy)
-bash ./models/download-ggml-model.sh base
-
-# Move model to your models directory
-mkdir -p ../models
-cp models/ggml-base.bin ../models/
-cd ..
-```
-
-### 4. Run the Application
-
-```bash
+# Edit .env — set GEMINI_API_KEY at minimum
 python run.py
 ```
 
-The API will be available at `http://localhost:5001`
+API base URL defaults to `http://127.0.0.1:5001`.
 
-## 📡 API Endpoints
+### Frontend (optional)
 
-### Health Check
-```http
-GET /api/v1/health
+```bash
+cd frontend
+npm install
+npm run dev
 ```
 
-Returns service health status and Gemini connectivity.
+Point the UI at the same host/port as the API, or set `MURMUR_CORS_ORIGINS` in `.env` to your dev origin (e.g. `http://localhost:5173`).
 
-### API Information
-```http
-GET /api/v1/info
-```
+## Environment variables
 
-Returns API information, supported formats, and available endpoints.
+Copy `.env.example` to `.env`. Common options:
 
-### Full Journal Analysis
-```http
-POST /api/v1/journal/analyze
-Content-Type: multipart/form-data
+| Variable | Description | Default |
+|----------|-------------|---------|
+| `GEMINI_API_KEY` | Server-side Gemini key. Optional if the client sends `X-Gemini-Api-Key` | — |
+| `GEMINI_HTTP_TIMEOUT` | Per-request Gemini HTTP timeout (seconds) | `120` |
+| `WHISPER_MODEL_NAME` | Whisper checkpoint (`tiny`, `base`, `small.en`, etc.) | `small.en` |
+| `MAX_TEXT_LENGTH` | Max characters for text analysis / ask | `50000` |
+| `MAX_JOURNAL_CONTEXT_LENGTH` | Max chars for journal context in ask | `120000` |
+| `HOST` | Bind address | `127.0.0.1` |
+| `PORT` | Port | `5001` |
+| `MURMUR_CORS_ORIGINS` | Comma-separated allowed origins | `*` (dev) |
 
-audio: <audio_file>
-```
+See `.env.example` for optional API gate (`MURMUR_API_SECRET`), upload limits, and production notes.
 
-**Response Example:**
+## API endpoints
+
+| Method | Path | Purpose |
+|--------|------|---------|
+| `GET` | `/api/v1/health` | Health and Gemini status |
+| `GET` | `/api/v1/info` | API metadata |
+| `POST` | `/api/v1/journal/transcript-only` | Multipart audio → transcript only |
+| `POST` | `/api/v1/journal/analyze` | Multipart audio → transcript + Gemini analysis |
+| `POST` | `/api/v1/journal/analyze-text` | JSON `{ "text": "..." }` → analysis (no audio) |
+| `POST` | `/api/v1/journal/ask` | Question over journal context (JSON) |
+| `POST` | `/api/v1/journal/verify-gemini-key` | Verify Gemini key (header `X-Gemini-Api-Key`) |
+
+For `analyze-text`, `analyze`, `ask`, and `verify-gemini-key`, the client may send **`X-Gemini-Api-Key`** when no server `GEMINI_API_KEY` is configured.
+
+### Example: analysis shape (truncated)
+
 ```json
 {
   "success": true,
-  "message": "Journal entry analyzed successfully",
   "data": {
-    "transcript": "Today I felt really overwhelmed with work...",
+    "transcript": "…",
     "analysis": {
       "summary": {
         "key_points": [
-          "• Feeling overwhelmed with current workload",
-          "• Seeking better work-life balance",
-          "• Recognizing need for self-care"
+          "First-person bullet about what I shared…",
+          "…"
         ]
       },
       "emotional_feedback": {
-        "feelings_detected": ["Overwhelmed", "Stressed"],
-        "key_thoughts": [
-          "Awareness of work-life balance needs",
-          "Self-reflection on current situation"
-        ],
-        "encouragement": "It's completely understandable to feel overwhelmed sometimes - it shows you care deeply about your work! Recognizing these feelings is actually a huge step forward. You're being so thoughtful about your well-being, and that's something to be proud of. 💙",
-        "suggestions": [
-          "Consider setting small, manageable daily goals",
-          "Try taking short breaks throughout your day"
-        ]
-      }
-    },
-    "metadata": {
-      "original_filename": "journal_entry.wav",
-      "file_size_bytes": 1024000
+        "key_thoughts": "Second-person reflection grounded in my words…",
+        "feelings": "Short paragraph acknowledging how I seem to feel…",
+        "murmurings": "2–3 short paragraphs; warm, specific, human follow-up…",
+        "mood": "ease | calm | tension"
+      },
+      "keywords": ["…", "…"]
     }
   }
 }
 ```
 
-### Transcription Only
-```http
-POST /api/v1/journal/transcript-only
-Content-Type: multipart/form-data
-
-audio: <audio_file>
-```
-
-Returns only the transcription without AI analysis.
-
-## 🔧 Configuration
-
-### Environment Variables
-
-| Variable | Description | Default | Required |
-|----------|-------------|---------|----------|
-| `GEMINI_API_KEY` | Google Gemini API key | - | Yes |
-| `WHISPER_MODEL_PATH` | Path to Whisper model file | `./models/ggml-base.bin` | Yes |
-| `WHISPER_EXECUTABLE_PATH` | Path to Whisper executable | `./whisper.cpp/main` | Yes |
-| `FLASK_ENV` | Flask environment | `development` | No |
-| `HOST` | Server host | `0.0.0.0` | No |
-| `PORT` | Server port | `5001` | No |
-| `SECRET_KEY` | Flask secret key | Auto-generated | No |
-| `MAX_CONTENT_LENGTH` | Max upload size in bytes | `16777216` (16MB) | No |
-
-### Supported Audio Formats
-
-- WAV (`.wav`)
-- MP3 (`.mp3`)
-- FLAC (`.flac`)
-- M4A (`.m4a`)
-- OGG (`.ogg`)
-- WebM (`.webm`)
-
-Maximum file size: **16MB**
-
-## 🧪 Testing
-
-### Manual Testing with curl
+## Manual checks
 
 ```bash
-# Health check
-curl http://localhost:5001/api/v1/health
+curl http://127.0.0.1:5001/api/v1/health
 
-# Upload and analyze audio
-curl -X POST \
-  -F "audio=@path/to/your/audio.wav" \
-  http://localhost:5001/api/v1/journal/analyze
-
-# Transcription only
-curl -X POST \
-  -F "audio=@path/to/your/audio.wav" \
-  http://localhost:5001/api/v1/journal/transcript-only
+curl -X POST http://127.0.0.1:5001/api/v1/journal/analyze \
+  -H "X-Gemini-Api-Key: YOUR_KEY" \
+  -F "audio=@recording.wav"
 ```
 
-### Testing with Python
+## Troubleshooting
 
-```python
-import requests
+**Gemini “not initialized” or 401 on analysis**  
+Set `GEMINI_API_KEY` in `.env` or send a valid `X-Gemini-Api-Key` from the client.
 
-# Test file upload
-with open('test_audio.wav', 'rb') as f:
-    files = {'audio': f}
-    response = requests.post('http://localhost:5001/api/v1/journal/analyze', files=files)
-    print(response.json())
-```
+**Analysis never finishes or times out**  
+The server enforces **`GEMINI_HTTP_TIMEOUT`** (default 120s) on each Gemini call. Slow networks, VPNs, or firewalls blocking Google APIs can cause timeouts—increase the value (e.g. `240`) or fix connectivity.
 
-## 🛠️ Development
+**Harmless stderr lines (ALTS / absl)**  
+Messages such as `ALTS creds ignored` or absl logging warnings come from Google’s gRPC stack when not running on Google Cloud. They are not Murmur errors.
 
-### Project Structure
+**Transcription fails**  
+Install **FFmpeg** and ensure `openai-whisper` loaded the model (see server logs on startup).
 
-- **Modular Design**: Services are separated into dedicated modules
-- **Configuration Management**: Environment-based configuration with sensible defaults
-- **Error Handling**: Comprehensive error handling with standardized responses
-- **Logging**: Structured logging for debugging and monitoring
-- **Validation**: Input validation for security and reliability
+**Whisper model load errors**  
+Use a valid `WHISPER_MODEL_NAME` and enough RAM/VRAM for that checkpoint.
 
-### Code Quality Standards
+## Development
 
-- **Clean Naming**: Descriptive variable and function names
-- **Documentation**: Comprehensive docstrings and comments
-- **Error Handling**: Graceful error handling with user-friendly messages
-- **Reusability**: Modular, reusable components
-- **Security**: Input validation and secure file handling
+- Add routes in `app/routes.py`, logic in `services/`, config in `config/settings.py`.
+- The `google-generativeai` package is deprecated by Google in favor of `google-genai`; migration is optional for now but planned upstream.
 
-### Adding New Features
+## License
 
-1. **Services**: Add new business logic to the `services/` directory
-2. **Routes**: Add new endpoints to `app/routes.py`
-3. **Utilities**: Add helper functions to `utils/`
-4. **Configuration**: Add new config options to `config/settings.py`
+MIT. See `LICENSE` if present.
 
-## 🚨 Troubleshooting
+## Contributing
 
-### Common Issues
-
-**1. Whisper.cpp not found**
-```
-Error: Whisper executable not found
-```
-- Ensure Whisper.cpp is compiled and the path in `.env` is correct
-- Check that the executable has proper permissions
-
-**2. Gemini API errors**
-```
-Error: Gemini service not properly initialized
-```
-- Verify your `GEMINI_API_KEY` is valid and has proper permissions
-- Check your internet connection
-
-**3. Audio upload fails**
-```
-Error: File type not allowed
-```
-- Ensure your audio file is in a supported format
-- Check that the file size is under 16MB
-
-**4. Transcription timeout**
-```
-Error: Transcription timed out
-```
-- Audio file may be too long (5-minute timeout)
-- Try with a shorter audio file
-
-### Logs and Debugging
-
-- **Development**: Logs are printed to console with DEBUG level
-- **Production**: Logs are written with INFO level
-
-## 📄 License
-
-This project is licensed under the MIT License. See the LICENSE file for details.
-
-## 🤝 Contributing
-
-1. Fork the repository
-2. Create a feature branch (`git checkout -b feature/amazing-feature`)
-3. Commit your changes (`git commit -m 'Add some amazing feature'`)
-4. Push to the branch (`git push origin feature/amazing-feature`)
-5. Open a Pull Request
-
-## 💬 Support
-
-For support, please open an issue on GitHub or contact the development team.
+Fork, branch, open a PR with a clear description of behavior and any new env vars.
 
 ---
 
-**Built with ❤️ for meaningful voice journaling experiences**
+Built for thoughtful voice journaling.
