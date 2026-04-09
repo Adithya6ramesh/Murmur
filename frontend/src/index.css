@@ -130,3 +130,52 @@
 .glow-layer-analyze {
   animation: morph-orb 15s ease-in-out infinite alternate-reverse;
 }
+
+/* Lighter motion on narrow viewports: morphing border-radius is paint-heavy on many phones */
+@keyframes morph-orb-lite {
+  0%,
+  100% {
+    transform: scale(1) rotate(0deg);
+  }
+  50% {
+    transform: scale(1.05) rotate(6deg);
+  }
+}
+
+@media (max-width: 768px) {
+  .loading-overlay .orb-blur-analyze {
+    filter: blur(40px);
+  }
+
+  .loading-overlay .organic-pulse-analyze,
+  .loading-overlay .glow-layer-analyze {
+    border-radius: 50%;
+    animation: morph-orb-lite 14s ease-in-out infinite alternate;
+  }
+
+  .loading-overlay .glow-layer-analyze {
+    animation: morph-orb-lite 17s ease-in-out infinite alternate-reverse;
+  }
+
+  .loading-overlay .loading-overlay-ambient {
+    filter: blur(64px);
+    opacity: 0.85;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .loading-overlay .organic-pulse-analyze,
+  .loading-overlay .glow-layer-analyze {
+    animation: none;
+    border-radius: 50%;
+  }
+
+  .loading-overlay .orb-blur-analyze {
+    filter: blur(32px);
+  }
+
+  .loading-overlay .animate-ping {
+    animation: none !important;
+    opacity: 0.12;
+  }
+}

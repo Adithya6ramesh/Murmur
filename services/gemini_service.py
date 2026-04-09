@@ -12,6 +12,11 @@ from config.settings import Config
 
 logger = logging.getLogger(__name__)
 
+
+def _gemini_request_options():
+    """Per-request options for google.generativeai (timeout in seconds)."""
+    return {"timeout": Config.GEMINI_HTTP_TIMEOUT}
+
 _WRONG_API_KEY_MSG = (
     "Wrong API key. Check that you copied the full key from Google AI Studio and try again."
 )
@@ -31,6 +36,11 @@ def _classify_gemini_exception(exc: BaseException) -> tuple[str, str | None]:
     lowered = msg.lower()
 
     if gexc:
+        if hasattr(gexc, "DeadlineExceeded") and isinstance(exc, gexc.DeadlineExceeded):
+            return (
+                "The request to Gemini timed out. Check your network, VPN, or firewall, then try again.",
+                None,
+            )
         if isinstance(exc, (gexc.PermissionDenied, gexc.Unauthenticated)):
             return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
         if isinstance(exc, gexc.InvalidArgument):
@@ -51,6 +61,12 @@ def _classify_gemini_exception(exc: BaseException) -> tuple[str, str | None]:
         )
     ):
         return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
+
+    if "deadline exceeded" in lowered or "504 deadline" in lowered:
+        return (
+            "The request to Gemini timed out. Check your network, VPN, or firewall, then try again.",
+            None,
+        )
 
     return msg, None
 
@@ -245,33 +261,19 @@ The user has spoken freely about their day. The input may be messy, unstructured
                            Focus on internal reflections, not events.
                            Keep them concise and meaningful.,
         "feelings": "Warm, specific acknowledgment of how they seem to feel—ground it in their words, second person (you). One short paragraph.",
-        "murmurings": " intermediate length 2-3 paragraphs
-                     The tone should feel:
-                    - calm
-                    - understanding
-                    - quietly comforting
-                    - human, not like an AI or therapist
+        "murmurings": "Exactly 2–3  paragraphs. Same shape every time: warm follow-up, not a report.
 
-                    Do NOT:
-                    - give strong advice
-                    - sound motivational or preachy
-                    - use clichés like "stay strong" or "everything will be okay"
-                    - over-explain
+                    Voice: you are someone who truly cares about them—a close friend or partner who is on their side. Comfort them when they sound low; share in their lightness when they sound happy or relieved; when it is mixed, stay steady with them. They should feel they belong with you, not analyzed.
 
-                    Instead:
-                    - acknowledge what they might be feeling
-                    - gently reflect their experience
-                    - offer a soft sense of reassurance or perspective
+                    Write in plain, everyday language. Sound like a real person texting after a long talk—honest, specific to what they said, never performative.
 
-                    The response should feel like:
-                    someone who truly listened, and is sitting with them — not fixing, just understanding.
+                    Do NOT sound like: a therapist, life coach, corporate wellness copy, or generic AI. Do NOT use therapy-speak or jargon (avoid words/phrases like: navigate, journey, hold space, honor, validate, intentional, mindful, processing, self-care speak, leverage, unpack, toxic, boundaries used emptily).
 
-                    Keep it natural, slightly poetic if it fits, but simple.
+                    Do NOT: give strong advice, preach, list tips, or use clichés ("stay strong", "everything happens for a reason", "you got this" unless it truly fits their words).
 
-                    Examples of tone (do not copy, just match feeling):
-                    - "That sounds like a lot to carry in one day. The way you're noticing it already says something about how you're handling it."
-                    - "There’s a quiet weight in what you shared. It’s okay to not have it all figured out right now."
-                    - "You showed up through all of that, even if it didn’t feel like much. That counts more than you think.",
+                    DO: use "you" naturally; name details from their entry; mirror their emotional temperature; offer quiet reassurance or shared joy without explaining their feelings back at them in clinical terms.
+
+                    Keep it natural; a little plain is better than polished emptiness.",
     "mood": "calm"
     }},
     "keywords": [
@@ -283,7 +285,7 @@ CRITICAL RULES:
 - Return ONLY the JSON object
 - summary.key_points: Exactly 5 or 6 strings. Each must be first person  and summarize part of their entry—not third person ("they" / "the user").
 - key_thoughts: Factual and tight—ground every claim in the transcript. If you cannot tie a sentence to their words, omit it.
-- murmurings: intermediate long paragraph. Specific. Human. Dont be generic, or AI botish sounds.
+- murmurings: 2–3 long paragraphs as above—specific to their words, human, belonging—not generic or jargon-heavy.
   - "ease" = clearly lighter, hopeful, relieved, or positive
   - "calm" = steady, mixed, or neutral reflection
   - "tension" = stress, weight, conflict, sadness, anger, or difficulty
@@ -318,7 +320,11 @@ Journal entry:
         try:
             prompt = self._create_journaling_prompt(transcript)
             logger.info("Gemini analyze: transcript_len=%s chars (content not logged)", len(transcript))
-            response = model.generate_content(prompt)
+            logger.info(
+                "Gemini generate_content starting (timeout=%ss)",
+                Config.GEMINI_HTTP_TIMEOUT,
+            )
+            response = model.generate_content(prompt, request_options=_gemini_request_options())
             logger.info(
                 "Gemini response received, chars=%s",
                 len(response.text) if response and response.text else 0,
@@ -456,7 +462,7 @@ Do not add a separate "Tone:" section."""
 
         def _ask(model):
             try:
-                response = model.generate_content(prompt)
+                response = model.generate_content(prompt, request_options=_gemini_request_options())
                 if not response or not response.text:
                     return False, "No response from the model. Try again.", None
                 return True, response.text.strip(), None
@@ -482,7 +488,7 @@ Do not add a separate "Tone:" section."""
 
         def _verify(model):
             try:
-                r = model.generate_content("Reply with exactly: OK")
+                r = model.generate_content("Reply with exactly: OK", request_options=_gemini_request_options())
                 if not r or not r.text:
                     return False, "Could not reach Gemini. Try again.", None
                 return True, None, None
@@ -539,7 +545,10 @@ Do not add a separate "Tone:" section."""
             return False, "Model not initialized"
         
         try:
-            test_response = self.model.generate_content("Reply with exactly: OK")
+            test_response = self.model.generate_content(
+                "Reply with exactly: OK",
+                request_options=_gemini_request_options(),
+            )
             if test_response and test_response.text:
                 return True, "Gemini service is healthy"
             else:

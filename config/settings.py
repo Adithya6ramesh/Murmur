@@ -19,6 +19,8 @@ class Config:
     UPLOAD_FOLDER = os.environ.get('UPLOAD_FOLDER', 'uploads')
 
     GEMINI_API_KEY = os.environ.get('GEMINI_API_KEY')
+    # Seconds for each Gemini HTTP call (avoids indefinite hangs on network issues)
+    GEMINI_HTTP_TIMEOUT = int(os.environ.get('GEMINI_HTTP_TIMEOUT', 120))
 
     MURMUR_API_SECRET = os.environ.get('MURMUR_API_SECRET') or ''
     MURMUR_API_SECRET_SHA256 = os.environ.get('MURMUR_API_SECRET_SHA256') or ''
