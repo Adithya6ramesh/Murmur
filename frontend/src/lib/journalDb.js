@@ -126,13 +126,8 @@ export async function saveMoodEntry(date, mood) {
   const existing = await db.entries.get(date);
   if (existing) {
     await db.entries.update(date, { mood, savedAt: new Date().toISOString() });
-  } else {
-    await db.entries.put({
-      date,
-      mood,
-      savedAt: new Date().toISOString(),
-    });
   }
+  /* Do not insert mood-only rows — resonance is only stored for real journal entries. */
 }
 
 export async function getMoodData() {

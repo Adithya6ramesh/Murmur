@@ -65,8 +65,9 @@ export default function MoodPage({
     }
   }, [lineD]);
 
-  const insight =
-    resStats.tensionPct > resStats.easePct
+  const insight = !resStats.total
+    ? 'Record and analyze a journal entry to see how ease, calm, and tension show up in this window.'
+    : resStats.tensionPct > resStats.easePct
       ? 'Tension shows up more in this window, short voice check-ins can help unload what’s heavy.'
       : 'Your entries lean steadier here; keep the small reflections coming; they add up.';
 
@@ -114,13 +115,15 @@ export default function MoodPage({
               </div>
               <div className="relative z-10">
                 <span className="mb-6 inline-block rounded-full bg-primary/10 px-3 py-1 font-label text-xs font-bold uppercase tracking-widest text-primary">
-                  Current resonance
+                  {todayMood ? 'Current resonance' : 'Today'}
                 </span>
-                <h3 className="mb-2 font-headline text-5xl font-bold text-on-surface">{todayMood.label}</h3>
+                <h3 className="mb-2 font-headline text-5xl font-bold text-on-surface">
+                  {todayMood?.label ?? '—'}
+                </h3>
                 <p className="mb-8 font-body text-sm leading-relaxed text-on-surface-variant">{moodDescription}</p>
                 <div className="flex items-center gap-3">
                   <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary-container text-2xl text-on-primary-container">
-                    {todayMood.emoji}
+                    {todayMood?.emoji ?? '·'}
                   </div>
                   <div>
                     <p className="font-body text-xs font-bold text-on-surface">Suggested rhythm</p>

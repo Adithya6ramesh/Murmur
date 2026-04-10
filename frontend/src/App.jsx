@@ -45,18 +45,29 @@ import EntryModal from './components/EntryModal.jsx';
 import LoadingOverlay from './components/LoadingOverlay.jsx';
 
 function extractMoodFromAnalysis(analysis) {
-  const raw = (analysis.emotional_feedback?.mood || 'calm').toLowerCase().trim();
-  if (raw === 'ease') {
+  const raw = analysis.emotional_feedback?.mood;
+  if (!raw || typeof raw !== 'string') return null;
+  const s = raw.toLowerCase().trim();
+  if (s === 'ease') {
     return { resonance: 'ease', level: 'high', emoji: '🌿', label: 'Ease' };
   }
-  if (raw === 'tension') {
+  if (s === 'tension') {
     return { resonance: 'tension', level: 'low', emoji: '🌧️', label: 'Tension' };
   }
-  return { resonance: 'calm', level: 'mid', emoji: '☁️', label: 'Calm' };
+  if (s === 'calm') {
+    return { resonance: 'calm', level: 'mid', emoji: '☁️', label: 'Calm' };
+  }
+  return null;
 }
 
-function getMoodDescription(mood) {
-  const r = mood?.resonance || legacyLevelToResonance(mood?.level || 'mid');
+function getMoodDescription(mood, hasJournalToday) {
+  if (!hasJournalToday) {
+    return 'No journal for today yet. After you record and analyze, your resonance for this day will appear here.';
+  }
+  if (!mood) {
+    return 'This day has a saved entry but no resonance on file. New analyses will refresh it.';
+  }
+  const r = mood.resonance || legacyLevelToResonance(mood.level || 'mid');
   if (r === 'ease') {
     return "You're leaning into something lighter today—room to breathe and grow.";
   }
@@ -220,13 +231,8 @@ function AppRoutes() {
 
   const today = new Date().toDateString();
   const todayEntry = journalEntries[today];
-  const todayMood = todayEntry?.mood || {
-    resonance: 'calm',
-    level: 'mid',
-    emoji: '☁️',
-    label: 'Calm',
-  };
-  const moodDescription = getMoodDescription(todayMood);
+  const todayMood = todayEntry?.mood ?? null;
+  const moodDescription = getMoodDescription(todayMood, Boolean(todayEntry));
 
   const goNav = useCallback(
     (nav) => {
