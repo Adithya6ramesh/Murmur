@@ -6,6 +6,6 @@ google-generativeai>=0.4.0,<1
 Werkzeug>=3.0.1,<4
 requests>=2.31.0,<3
 python-multipart>=0.0.9,<1
-openai-whisper>=20231117
 gunicorn>=22.0.0,<24; sys_platform != "win32"
 waitress>=3.0.0,<4; sys_platform == "win32"
+faster-whisper>=1.1,<2

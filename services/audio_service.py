@@ -1,10 +1,15 @@
 """
-Audio processing service using OpenAI Whisper for speech-to-text conversion
+Audio processing service using Whisper (faster-whisper, falling back to
+openai-whisper) for speech-to-text conversion
 """
 import os
 import logging
+import subprocess
+import threading
 import uuid
 from pathlib import Path
+
+import numpy as np
 
 from config.settings import Config
 
@@ -41,19 +46,52 @@ def _looks_like_audio(file_path: str) -> bool:
         return False
 
 
+def _load_audio_16k(file_path: str) -> np.ndarray:
+    """Decode audio to 16 kHz mono float32 with the ffmpeg CLI.
+
+    Used instead of faster-whisper's PyAV decoder, which breaks across PyAV
+    versions (av>=15 rejects the metadata_errors argument).
+    """
+    cmd = ["ffmpeg", "-nostdin", "-loglevel", "error", "-i", file_path,
+           "-f", "s16le", "-ac", "1", "-ar", "16000", "-"]
+    out = subprocess.run(cmd, capture_output=True, check=True).stdout
+    return np.frombuffer(out, np.int16).astype(np.float32) / 32768.0
+
+
 class AudioService:
     """Service for handling audio file processing and transcription"""
 
     def __init__(self):
         self.whisper_model = None
+        self._backend = None
+        # Whisper decoding is not safe to run concurrently on one model, and
+        # gunicorn runs this worker with multiple threads.
+        self._lock = threading.Lock()
         self._initialize_whisper()
 
     def _initialize_whisper(self):
+        name = (Config.WHISPER_MODEL_NAME or "small.en").strip()
+        try:
+            from faster_whisper import WhisperModel
+            logger.info("Loading faster-whisper model: %s (int8)", name)
+            self.whisper_model = WhisperModel(name, device="cpu", compute_type="int8", cpu_threads=2)
+            self._backend = "faster-whisper"
+            logger.info("faster-whisper model loaded successfully (%s)", name)
+            return
+        except ImportError:
+            logger.warning("faster-whisper not installed, falling back to openai-whisper")
+        except Exception as e:
+            # Don't fall back here: openai-whisper needs ~3x the memory and
+            # would exceed the service's MemoryMax.
+            logger.error("Failed to load faster-whisper model: %s", e)
+            self.whisper_model = None
+            return
+
         try:
             import whisper
-            name = (Config.WHISPER_MODEL_NAME or "small.en").strip()
             logger.info("Loading Whisper model: %s", name)
             self.whisper_model = whisper.load_model(name)
+            self._backend = "openai-whisper"
             logger.info("OpenAI Whisper model loaded successfully (%s)", name)
         except ImportError:
             logger.error("openai-whisper not installed. pip install openai-whisper")
@@ -67,8 +105,10 @@ class AudioService:
     def transcribe_audio(self, audio_file_path):
         try:
             if self.whisper_model is None:
-                logger.info("Whisper model not loaded, attempting to reinitialize")
-                self._initialize_whisper()
+                with self._lock:
+                    if self.whisper_model is None:
+                        logger.info("Whisper model not loaded, attempting to reinitialize")
+                        self._initialize_whisper()
                 if self.whisper_model is None:
                     return False, "Speech-to-text engine not available. Contact the server administrator."
 
@@ -84,8 +124,14 @@ class AudioService:
 
             logger.info("Starting transcription (size=%d bytes)", file_size)
 
-            result = self.whisper_model.transcribe(audio_file_path)
-            transcription = result.get("text", "").strip()
+            with self._lock:
+                if self._backend == "faster-whisper":
+                    # segments is a lazy generator; consume it while holding the lock
+                    segments, _info = self.whisper_model.transcribe(_load_audio_16k(audio_file_path))
+                    transcription = "".join(s.text for s in segments).strip()
+                else:
+                    result = self.whisper_model.transcribe(audio_file_path)
+                    transcription = result.get("text", "").strip()
 
             if not transcription:
                 return False, "No speech detected — audio may be silent or corrupted"
