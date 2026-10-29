@@ -1,74 +1,110 @@
 """
-Google Gemini AI service for journaling analysis and emotional feedback
+Provider-agnostic LLM service (Gemini, Claude, OpenAI) for journaling analysis.
+The provider is inferred from the model name the user picks, falling back to the API key prefix.
 """
 import json
 import logging
 import re
-import threading
 from collections import Counter
 
-import google.generativeai as genai
+import requests
 from config.settings import Config
 
 logger = logging.getLogger(__name__)
 
-
-def _gemini_request_options():
-    """Per-request options for google.generativeai (timeout in seconds)."""
-    return {"timeout": Config.GEMINI_HTTP_TIMEOUT}
-
 _WRONG_API_KEY_MSG = (
-    "Wrong API key. Check that you copied the full key from Google AI Studio and try again."
+    "Wrong API key. Check that you copied the full key from your provider and that it matches the selected model."
 )
+_TIMEOUT_MSG = "The request to the AI provider timed out. Check your network, VPN, or firewall, then try again."
 
 
-def _classify_gemini_exception(exc: BaseException) -> tuple[str, str | None]:
-    """
-    Map Gemini / Google SDK errors to a user-facing message and optional error_code.
-    error_code INVALID_GEMINI_API_KEY is used when the key is invalid or not authorized.
-    """
+class LLMError(Exception):
+    """Provider call failed; message is safe to show to the user."""
+
+    def __init__(self, message, code=None):
+        super().__init__(message)
+        self.message = message
+        self.code = code
+
+
+def detect_provider(model, api_key=""):
+    """Return 'anthropic' | 'gemini' | 'openai' from the model name, else from the key prefix."""
+    m = (model or "").strip().lower()
+    if m.startswith("claude"):
+        return "anthropic"
+    if m.startswith(("gemini", "gemma")):
+        return "gemini"
+    if m.startswith(("gpt", "chatgpt", "o1", "o3", "o4", "o5")):
+        return "openai"
+    k = (api_key or "").strip()
+    if k.startswith("sk-ant-"):
+        return "anthropic"
+    if k.startswith("AIza"):
+        return "gemini"
+    return "openai"
+
+
+def _post(url, headers, payload):
     try:
-        from google.api_core import exceptions as gexc
-    except ImportError:
-        gexc = None
-
-    msg = str(exc).strip()
-    lowered = msg.lower()
-
-    if gexc:
-        if hasattr(gexc, "DeadlineExceeded") and isinstance(exc, gexc.DeadlineExceeded):
-            return (
-                "The request to Gemini timed out. Check your network, VPN, or firewall, then try again.",
-                None,
-            )
-        if isinstance(exc, (gexc.PermissionDenied, gexc.Unauthenticated)):
-            return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
-        if isinstance(exc, gexc.InvalidArgument):
-            if any(
-                x in lowered
-                for x in ("api key", "apikey", "api_key", "invalid api", "invalid_argument")
-            ):
-                return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
-
-    if any(
-        x in lowered
-        for x in (
-            "api key not valid",
-            "invalid api key",
-            "api_key_invalid",
-            "api key expired",
-            "requests to this api",
-        )
+        r = requests.post(url, headers=headers, json=payload, timeout=Config.LLM_HTTP_TIMEOUT)
+    except requests.Timeout:
+        raise LLMError(_TIMEOUT_MSG)
+    except requests.RequestException as e:
+        logger.error("LLM request failed: %s", type(e).__name__)
+        raise LLMError("Could not reach the AI provider. Check your network and try again.")
+    if r.status_code < 400:
+        try:
+            return r.json()
+        except ValueError:
+            raise LLMError("The AI provider returned an unreadable response.")
+    try:
+        body = r.json()
+        err = body.get("error", body) if isinstance(body, dict) else {}
+        detail = err.get("message", "") if isinstance(err, dict) else str(err)
+    except ValueError:
+        detail = ""
+    detail = str(detail)[:300]
+    lowered = detail.lower()
+    logger.error("LLM HTTP %s from provider (detail not logged)", r.status_code)
+    if r.status_code in (401, 403) or any(
+        x in lowered for x in ("api key not valid", "invalid api key", "invalid x-api-key", "api_key_invalid")
     ):
-        return _WRONG_API_KEY_MSG, "INVALID_GEMINI_API_KEY"
-
-    if "deadline exceeded" in lowered or "504 deadline" in lowered:
-        return (
-            "The request to Gemini timed out. Check your network, VPN, or firewall, then try again.",
-            None,
+        raise LLMError(_WRONG_API_KEY_MSG, "INVALID_API_KEY")
+    if r.status_code == 404 or ("model" in lowered and ("not found" in lowered or "does not exist" in lowered)):
+        raise LLMError(
+            "That model name wasn't found for this provider. Check the model name in Settings.", "INVALID_MODEL"
         )
+    if r.status_code == 429:
+        raise LLMError("Rate limit or quota reached for this API key. Try again later.")
+    raise LLMError(detail or f"The AI provider returned an error ({r.status_code}).")
 
-    return msg, None
+
+def _generate(prompt, api_key, model):
+    """Send one prompt to the provider matching `model`; return the reply text."""
+    provider = detect_provider(model, api_key)
+    if provider == "anthropic":
+        data = _post(
+            "https://api.anthropic.com/v1/messages",
+            {"x-api-key": api_key, "anthropic-version": "2023-06-01"},
+            {"model": model, "max_tokens": 4096, "messages": [{"role": "user", "content": prompt}]},
+        )
+        return "".join(b.get("text", "") for b in data.get("content", []) if b.get("type") == "text")
+    if provider == "gemini":
+        data = _post(
+            f"https://generativelanguage.googleapis.com/v1beta/models/{model}:generateContent",
+            {"x-goog-api-key": api_key},
+            {"contents": [{"parts": [{"text": prompt}]}]},
+        )
+        cands = data.get("candidates") or []
+        parts = (cands[0].get("content") or {}).get("parts", []) if cands else []
+        return "".join(p.get("text", "") for p in parts)
+    data = _post(
+        "https://api.openai.com/v1/chat/completions",
+        {"Authorization": f"Bearer {api_key}"},
+        {"model": model, "messages": [{"role": "user", "content": prompt}]},
+    )
+    choices = data.get("choices") or []
+    return ((choices[0].get("message") or {}).get("content") or "") if choices else ""
 
 
 # Common English stop words for transcript-based keyword fallback
@@ -98,7 +134,7 @@ def _keywords_from_transcript(transcript, exclude=None, target_max=8):
 
 
 def _extract_keywords_raw(analysis):
-    """Gemini sometimes uses alternate keys or nests keywords under summary."""
+    """Models sometimes uses alternate keys or nests keywords under summary."""
     if not isinstance(analysis, dict):
         return None
     for key in ('keywords', 'context_keywords', 'top_keywords', 'keyword_tags'):
@@ -171,53 +207,26 @@ def _normalize_emotional_feedback(emotional_feedback):
     return out
 
 
-_GEMINI_LOCK = threading.Lock()
+class LLMService:
+    """Service for journaling analysis with a user-selected model."""
 
-
-class GeminiService:
-    """Service for interacting with Google Gemini API for journaling analysis"""
-    
     def __init__(self):
-        self.api_key = Config.GEMINI_API_KEY
-        self._initialize_client()
-    
-    def _initialize_client(self):
-        """Initialize the Gemini client"""
-        if not self.api_key:
-            logger.error("Gemini API key not configured")
-            return
-        
-        try:
-            genai.configure(api_key=self.api_key)
-            self.model = genai.GenerativeModel('gemini-2.5-flash')
-            logger.info("Gemini client initialized successfully")
-        except Exception as e:
-            logger.error(f"Failed to initialize Gemini client: {str(e)}")
-            self.model = None
+        self.api_key = Config.LLM_API_KEY
+        self.model = Config.LLM_MODEL
 
-    def _restore_server_config(self):
-        """Restore process-wide genai config after a per-request user key."""
-        if self.api_key:
-            genai.configure(api_key=self.api_key)
+    def _run_with_request_key(self, request_api_key, request_model, fn):
+        """
+        Run fn(generate) where generate(prompt) -> text, using the client-supplied
+        key/model, or the server env defaults.
+        """
+        key = (request_api_key or "").strip() or self.api_key
+        model = (request_model or "").strip() or self.model
+        if not key:
+            return False, "API key required. Add your key in Murmur Settings.", None
+        if not model:
+            return False, "Model name required. Add a model name in Murmur Settings.", None
+        return fn(lambda prompt: _generate(prompt, key, model))
 
-    def _run_with_request_key(self, request_api_key, fn):
-        """
-        Run fn(model) with optional client API key. google-generativeai uses global
-        configure(), so user-key requests hold a lock for the whole call.
-        """
-        user_key = (request_api_key or "").strip()
-        if user_key:
-            with _GEMINI_LOCK:
-                genai.configure(api_key=user_key)
-                model = genai.GenerativeModel('gemini-2.5-flash')
-                try:
-                    return fn(model)
-                finally:
-                    self._restore_server_config()
-        if not self.model:
-            return False, "Gemini API key required. Add your key in Murmur Settings.", None
-        return fn(self.model)
-    
     def _create_journaling_prompt(self, transcript):
         """
         Create a comprehensive prompt for journaling analysis
@@ -226,7 +235,7 @@ class GeminiService:
             transcript (str): The transcribed text from audio
             
         Returns:
-            str: Formatted prompt for Gemini
+            str: Formatted prompt
         """
         return f"""
 You are Murmur — a calm, thoughtful, and emotionally intelligent journaling companion.
@@ -297,13 +306,14 @@ Journal entry:
 {json.dumps(transcript)}
 """
     
-    def analyze_journal_entry(self, transcript, request_api_key=None):
+    def analyze_journal_entry(self, transcript, request_api_key=None, request_model=None):
         """
-        Analyze a journal transcript using Gemini AI
+        Analyze a journal transcript using the selected model
         
         Args:
             transcript (str): The transcribed journal entry
             request_api_key (str, optional): Client-supplied API key (overrides server env)
+            request_model (str, optional): Client-selected model name
             
         Returns:
             tuple: (success, analysis dict or error_message, error_code or None)
@@ -312,32 +322,24 @@ Journal entry:
             return False, "No transcript provided for analysis", None
         return self._run_with_request_key(
             request_api_key,
-            lambda model: self._analyze_journal_core(model, transcript.strip()),
+            request_model,
+            lambda generate: self._analyze_journal_core(generate, transcript.strip()),
         )
 
-    def _analyze_journal_core(self, model, transcript):
-        """Run Gemini JSON analysis; model is already configured for this request."""
+    def _analyze_journal_core(self, generate, transcript):
+        """Run JSON analysis via generate(prompt) -> text."""
         try:
             prompt = self._create_journaling_prompt(transcript)
-            logger.info("Gemini analyze: transcript_len=%s chars (content not logged)", len(transcript))
-            logger.info(
-                "Gemini generate_content starting (timeout=%ss)",
-                Config.GEMINI_HTTP_TIMEOUT,
-            )
-            response = model.generate_content(prompt, request_options=_gemini_request_options())
-            logger.info(
-                "Gemini response received, chars=%s",
-                len(response.text) if response and response.text else 0,
-            )
-            
-            if not response or not response.text:
-                logger.error("Empty response from Gemini")
-                return False, "No response generated from Gemini", None
-            
+            logger.info("LLM analyze: transcript_len=%s chars (content not logged)", len(transcript))
+            raw_text = generate(prompt)
+            logger.info("LLM response received, chars=%s", len(raw_text or ""))
+
+            if not raw_text or not raw_text.strip():
+                logger.error("Empty response from model")
+                return False, "No response generated from the model", None
+
             try:
-                if logger.isEnabledFor(logging.DEBUG) and response.text:
-                    logger.debug("Raw Gemini response (truncated): %s...", response.text[:200])
-                response_text = response.text.strip()
+                response_text = raw_text.strip()
                 if '```json' in response_text:
                     json_match = re.search(r'```json\s*(.*?)\s*```', response_text, re.DOTALL)
                     if json_match:
@@ -357,7 +359,7 @@ Journal entry:
                 required_keys = ['summary', 'emotional_feedback']
                 if not all(key in analysis for key in required_keys):
                     logger.error(f"Missing required keys in response: {list(analysis.keys())}")
-                    return False, "Invalid response structure from Gemini", None
+                    return False, "Invalid response structure from the model", None
                 emotional_feedback = _normalize_emotional_feedback(analysis.get('emotional_feedback', {}))
                 required_emotional_keys = ['key_thoughts', 'feelings', 'murmurings', 'mood']
                 missing_keys = [key for key in required_emotional_keys if key not in emotional_feedback]
@@ -376,23 +378,17 @@ Journal entry:
                 logger.info("Successfully analyzed journal entry with proper structure")
                 return True, analysis, None
             except json.JSONDecodeError as e:
-                logger.error("Failed to parse Gemini response as JSON: %s", str(e))
-                if response and response.text:
-                    logger.debug(
-                        "Raw response length=%s (snippet not logged at INFO)",
-                        len(response.text),
-                    )
-                fallback_analysis = self._create_fallback_analysis(response.text, transcript)
+                logger.error("Failed to parse model response as JSON: %s", str(e))
+                fallback_analysis = self._create_fallback_analysis(raw_text, transcript)
                 logger.info("Using fallback analysis")
                 return True, fallback_analysis, None
+        except LLMError as e:
+            return False, e.message, e.code
         except Exception as e:
-            logger.error("Gemini analysis error: %s", e)
-            user_msg, err_code = _classify_gemini_exception(e)
-            if err_code:
-                return False, user_msg, err_code
+            logger.error("LLM analysis error: %s", e)
             return False, "Analysis failed. Please try again.", None
     
-    def ask_journal_question(self, question, journal_context, request_api_key=None):
+    def ask_journal_question(self, question, journal_context, request_api_key=None, request_model=None):
         """
         Answer a user question using only the provided journal excerpts (RAG-style).
         
@@ -460,53 +456,51 @@ Relevant Insights:
 
 Do not add a separate "Tone:" section."""
 
-        def _ask(model):
+        def _ask(generate):
             try:
-                response = model.generate_content(prompt, request_options=_gemini_request_options())
-                if not response or not response.text:
+                text = generate(prompt)
+                if not text or not text.strip():
                     return False, "No response from the model. Try again.", None
-                return True, response.text.strip(), None
+                return True, text.strip(), None
+            except LLMError as e:
+                return False, e.message, e.code
             except Exception as e:
                 logger.error("ask_journal_question error: %s", e)
-                user_msg, err_code = _classify_gemini_exception(e)
-                if err_code:
-                    return False, user_msg, err_code
                 return False, "Could not get an answer. Please try again.", None
 
-        return self._run_with_request_key(request_api_key, _ask)
+        return self._run_with_request_key(request_api_key, request_model, _ask)
 
-    def verify_gemini_api_key(self, request_api_key: str):
+    def verify_api_key(self, request_api_key, request_model):
         """
-        Lightweight check that the API key can call Gemini (one short generation).
+        Lightweight check that the key + model work (one short generation).
 
         Returns:
             tuple: (success, message_or_none, error_code_or_None)
         """
-        key = (request_api_key or "").strip()
-        if not key:
+        if not (request_api_key or "").strip():
             return False, "No API key provided.", None
+        if not (request_model or "").strip():
+            return False, "No model name provided.", None
 
-        def _verify(model):
+        def _verify(generate):
             try:
-                r = model.generate_content("Reply with exactly: OK", request_options=_gemini_request_options())
-                if not r or not r.text:
-                    return False, "Could not reach Gemini. Try again.", None
+                if not generate("Reply with exactly: OK"):
+                    return False, "Could not reach the AI provider. Try again.", None
                 return True, None, None
+            except LLMError as e:
+                return False, e.message, e.code
             except Exception as e:
-                logger.error("verify_gemini_api_key error: %s", e)
-                user_msg, err_code = _classify_gemini_exception(e)
-                if err_code:
-                    return False, user_msg, err_code
+                logger.error("verify_api_key error: %s", e)
                 return False, "Could not verify key. Please try again.", None
 
-        return self._run_with_request_key(key, _verify)
-    
+        return self._run_with_request_key(request_api_key, request_model, _verify)
+
     def _create_fallback_analysis(self, raw_response, transcript):
         """
         Create a fallback structured analysis when JSON parsing fails
         
         Args:
-            raw_response (str): Raw response from Gemini
+            raw_response (str): Raw model response
             transcript (str): Original transcript
             
         Returns:
@@ -533,29 +527,24 @@ Do not add a separate "Tone:" section."""
     
     def health_check(self):
         """
-        Check if the Gemini service is working properly
-        
+        Clients bring their own key, so this only probes the provider when
+        LLM_API_KEY and LLM_MODEL are set in the server environment.
+
         Returns:
             tuple: (is_healthy: bool, status_message: str)
         """
-        if not self.api_key:
-            return False, "API key not configured"
-        
-        if not self.model:
-            return False, "Model not initialized"
-        
+        if not self.api_key or not self.model:
+            return True, "No server-side key configured; clients supply their own"
         try:
-            test_response = self.model.generate_content(
-                "Reply with exactly: OK",
-                request_options=_gemini_request_options(),
-            )
-            if test_response and test_response.text:
-                return True, "Gemini service is healthy"
-            else:
-                return False, "No response from Gemini"
+            if _generate("Reply with exactly: OK", self.api_key, self.model):
+                return True, "LLM service is healthy"
+            return False, "No response from model"
+        except LLMError as e:
+            return False, e.message
         except Exception as e:
-            logger.error("Gemini health check failed: %s", e)
-            return False, "Gemini health check failed"
+            logger.error("LLM health check failed: %s", e)
+            return False, "LLM health check failed"
+
 
 # Create a singleton instance
-gemini_service = GeminiService()
+llm_service = LLMService()

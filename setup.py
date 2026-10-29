@@ -62,7 +62,7 @@ def setup_environment_file():
         shutil.copy('.env.example', '.env')
         print("✅ .env file created from template")
         print("⚠️  Please edit .env file with your configuration:")
-        print("   - Add your GEMINI_API_KEY")
+        print("   - Optionally set LLM_API_KEY and LLM_MODEL")
         print("   - Configure WHISPER_MODEL_PATH and WHISPER_EXECUTABLE_PATH")
         return True
     except Exception as e:

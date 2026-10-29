@@ -5,7 +5,7 @@ This document describes **what Murmur does not guarantee**, known **residual ris
 ## What is *not* fully "safe"
 
 1. **Gemini API key on the client**  
-   The browser sends `X-Gemini-Api-Key` to your backend so Google can be called. Anyone who can read **network traffic** (no TLS), **browser DevTools → Network**, **malicious extensions**, or **malware on the device** can see that header. **Mitigation:** use **HTTPS** in production; prefer **server-only** `GEMINI_API_KEY` and **do not** send client keys (requires product changes).
+   The browser sends `X-Llm-Api-Key` to your backend so Google can be called. Anyone who can read **network traffic** (no TLS), **browser DevTools → Network**, **malicious extensions**, or **malware on the device** can see that header. **Mitigation:** use **HTTPS** in production; prefer **server-only** `LLM_API_KEY` and **do not** send client keys (requires product changes).
 
 2. **Secrets in the frontend bundle**  
    Any `VITE_*` variable is **embedded in built JavaScript**. Treat **`VITE_MURMUR_API_KEY`** as **public** if someone can download your static assets. The optional Murmur gate is mainly for **casual abuse** and **same-origin** scenarios, not hiding a secret from a determined attacker with your JS.
@@ -50,7 +50,7 @@ This document describes **what Murmur does not guarantee**, known **residual ris
 - Fallback analysis no longer leaks raw model output.
 
 ### Logging
-- Werkzeug access log filter **redacts** lines mentioning sensitive headers (`X-Gemini-Api-Key`, `Authorization`, `X-Murmur-Api-Key`).
+- Werkzeug access log filter **redacts** lines mentioning sensitive headers (`X-Llm-Api-Key`, `Authorization`, `X-Murmur-Api-Key`).
 - Transcript content is **not logged** at INFO level; only lengths are recorded.
 - Health endpoint avoids leaking Gemini exception strings when `DEBUG` is off.
 
@@ -66,7 +66,7 @@ This document describes **what Murmur does not guarantee**, known **residual ris
 - [ ] Set a **strong `SECRET_KEY`**: `python -c "import secrets; print(secrets.token_hex(32))"`.
 - [ ] Set **`MURMUR_CORS_ORIGINS`** to your frontend origin(s), not `*`.
 - [ ] Set **`MURMUR_API_SECRET`** or **`MURMUR_API_SECRET_SHA256`** and matching client config.
-- [ ] Prefer **`GEMINI_API_KEY`** server-side only; stop sending client keys if possible.
+- [ ] Prefer **`LLM_API_KEY`** server-side only; stop sending client keys if possible.
 - [ ] Use a **production WSGI server** — `gunicorn` (Linux/macOS) or `waitress` (Windows).
 - [ ] Install **`Flask-Limiter`** (`pip install Flask-Limiter`). Adjust limits via env vars or code.
 - [ ] Run behind a **reverse proxy** (nginx, Caddy) with TLS; do not expose Flask directly.

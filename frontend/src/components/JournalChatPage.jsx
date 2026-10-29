@@ -43,7 +43,7 @@ function AssistantBubble({ answer, insights }) {
   );
 }
 
-export default function JournalChatPage({ journalEntries, onBack, resolveGeminiKey }) {
+export default function JournalChatPage({ journalEntries, onBack, resolveApiKey, resolveModel }) {
   const [messages, setMessages] = useState([]);
   const [input, setInput] = useState('');
   const [loading, setLoading] = useState(false);
@@ -92,18 +92,19 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
 
     setLoading(true);
     try {
-      const geminiKey = await resolveGeminiKey();
-      if (!geminiKey.trim()) {
+      const apiKey = await resolveApiKey();
+      const model = resolveModel();
+      if (!apiKey.trim() || !model) {
         setMessages((m) => [
           ...m,
           {
             role: 'assistant',
-            text: 'Add your Gemini API key in Settings first. Murmur needs it to answer with Gemini.',
+            text: 'Add your API key and model in Settings first. Murmur needs them to answer.',
           },
         ]);
         return;
       }
-      const raw = await askJournalQuestion(q, context, geminiKey);
+      const raw = await askJournalQuestion(q, context, apiKey, model);
       const { answer, insights } = parseAskResponse(raw);
       setMessages((m) => [
         ...m,
@@ -140,7 +141,7 @@ export default function JournalChatPage({ journalEntries, onBack, resolveGeminiK
           <div>
             <h1 className="font-headline text-2xl font-bold text-on-surface">Ask Murmur</h1>
             <p className="font-body text-xs text-on-surface-variant">
-              Your question is matched to saved summaries &amp; keywords, then answered with Gemini using only that
+              Your question is matched to saved summaries &amp; keywords, then answered by your chosen AI model using only that
               context.
             </p>
           </div>

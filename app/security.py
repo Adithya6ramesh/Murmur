@@ -14,7 +14,8 @@ from utils.responses import error_response
 logger = logging.getLogger(__name__)
 
 _SENSITIVE_HEADERS = (
-    "x-gemini-api-key",
+    "x-llm-api-key",
+    "x-llm-model",
     "authorization",
     "x-murmur-api-key",
 )

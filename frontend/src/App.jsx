@@ -14,7 +14,7 @@ import {
   getJournalDb,
   saveJournalEntry,
 } from './lib/journalDb.js';
-import { analyzeText, transcribeAudio, verifyGeminiApiKey } from './lib/journalApi.js';
+import { analyzeText, transcribeAudio, verifyApiKey } from './lib/journalApi.js';
 import {
   buildMoodSeriesFromEntries,
   buildWeeklyResonanceBars,
@@ -25,11 +25,12 @@ import {
   weeklyResonanceLabelFromStats,
 } from './utils/moodData.js';
 import {
-  getGeminiApiKeyForRequest,
-  hasGeminiKeySync,
+  getApiKeyForRequest,
+  getModelForRequest,
+  hasApiKeySync,
   loadUserSettings,
-  migrateLegacyGeminiKeyToEncrypted,
-  persistGeminiApiKey,
+  migrateLegacyApiKeyToEncrypted,
+  persistApiKey,
   saveUserSettings,
 } from './lib/userSettings.js';
 
@@ -110,9 +111,9 @@ function AppRoutes() {
   const showProfileNudge = useMemo(() => {
     if (profileNudgeDismissed) return false;
     const name = userSettings.displayName?.trim();
-    const hasKey = Boolean(userSettings.geminiKeyPresent);
+    const hasKey = Boolean(userSettings.apiKeyPresent);
     return !name || !hasKey;
-  }, [userSettings.displayName, userSettings.geminiKeyPresent, profileNudgeDismissed]);
+  }, [userSettings.displayName, userSettings.apiKeyPresent, profileNudgeDismissed]);
 
   const dismissProfileNudge = useCallback(() => {
     localStorage.setItem('murmur-nudge-profile-dismissed', '1');
@@ -143,7 +144,7 @@ function AppRoutes() {
   }, [location.pathname]);
 
   useEffect(() => {
-    migrateLegacyGeminiKeyToEncrypted()
+    migrateLegacyApiKeyToEncrypted()
       .catch(() => {})
       .finally(() => setUserSettings(loadUserSettings()));
   }, []);
@@ -220,13 +221,19 @@ function AppRoutes() {
     setUserSettings(saveUserSettings(partial));
   }, []);
 
-  const persistGeminiFromUser = useCallback(async (plaintext) => {
-    const trimmed = plaintext.trim();
-    if (trimmed) {
-      await verifyGeminiApiKey(trimmed);
+  // newKey may be empty to keep the saved key and only change the model.
+  const saveAiSettings = useCallback(async (newKey, model) => {
+    const trimmedModel = model.trim();
+    const key = newKey.trim() || (await getApiKeyForRequest());
+    await verifyApiKey(key, trimmedModel);
+    if (newKey.trim()) {
+      await persistApiKey(newKey);
     }
-    const next = await persistGeminiApiKey(plaintext);
-    setUserSettings(next);
+    setUserSettings(saveUserSettings({ llmModel: trimmedModel }));
+  }, []);
+
+  const removeApiKey = useCallback(async () => {
+    setUserSettings(await persistApiKey(''));
   }, []);
 
   const today = new Date().toDateString();
@@ -238,8 +245,8 @@ function AppRoutes() {
     (nav) => {
       if (nav === 'home') navigate('/');
       if (nav === 'recording') {
-        if (!hasGeminiKeySync()) {
-          alert('Add your Gemini API key in Settings before recording.');
+        if (!hasApiKeySync() || !getModelForRequest()) {
+          alert('Add your API key and model in Settings before recording.');
           return;
         }
         if (journalEntries[today]) {
@@ -390,9 +397,10 @@ function AppRoutes() {
       alert('No transcript to analyze. Record something or type your thoughts.');
       return;
     }
-    const geminiKey = await getGeminiApiKeyForRequest();
-    if (!geminiKey.trim()) {
-      alert('Add your Gemini API key in Settings before analyzing your journal.');
+    const apiKey = await getApiKeyForRequest();
+    const model = getModelForRequest();
+    if (!apiKey.trim() || !model) {
+      alert('Add your API key and model in Settings before analyzing your journal.');
       return;
     }
     if (journalEntries[today]) {
@@ -403,7 +411,7 @@ function AppRoutes() {
     }
     setLoadingMessage('Analyzing your thoughts…');
     try {
-      const result = await analyzeText(text, geminiKey);
+      const result = await analyzeText(text, apiKey, model);
       setAnalysis(result);
       setAnalysisVisible(true);
 
@@ -538,7 +546,8 @@ function AppRoutes() {
               <SettingsPage
                 settings={userSettings}
                 onSave={updateUserSettings}
-                onPersistGeminiKey={persistGeminiFromUser}
+                onSaveAi={saveAiSettings}
+                onRemoveApiKey={removeApiKey}
                 onBack={() => navigate('/')}
               />
             }
@@ -548,7 +557,8 @@ function AppRoutes() {
             element={
               <JournalChatPage
                 journalEntries={journalEntries}
-                resolveGeminiKey={getGeminiApiKeyForRequest}
+                resolveApiKey={getApiKeyForRequest}
+                resolveModel={getModelForRequest}
                 onBack={() => navigate('/')}
               />
             }

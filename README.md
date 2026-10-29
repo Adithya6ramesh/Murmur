@@ -1,13 +1,13 @@
 # Murmur — AI voice journaling (Flask backend + React frontend)
 
-Flask API that transcribes voice with **OpenAI Whisper** (Python package) and analyzes journal text with **Google Gemini**. A Vite/React app in `frontend/` talks to this server.
+Flask API that transcribes voice with **OpenAI Whisper** (Python package) and analyzes journal text with the LLM you choose (**Gemini, Claude, or OpenAI**). A Vite/React app in `frontend/` talks to this server.
 
 ## Features
 
 - **Audio**: Common formats (WAV, MP3, FLAC, M4A, OGG, WebM) with validation and size limits
 - **Speech-to-text**: Local transcription via `openai-whisper` (model name from env, e.g. `small.en`)
-- **AI analysis**: Structured summaries, feelings, key thoughts, and **murmurings** (warm, human follow-up) via Gemini
-- **Health & errors**: Health check, logging, configurable Gemini HTTP timeouts
+- **AI analysis**: Structured summaries, feelings, key thoughts, and **murmurings** (warm, human follow-up) via your chosen model
+- **Health & errors**: Health check, logging, configurable LLM HTTP timeouts
 
 ## Architecture
 
@@ -17,7 +17,7 @@ Murmur/
 ├── config/settings.py      # Environment-based config
 ├── services/
 │   ├── audio_service.py    # Whisper transcription
-│   └── gemini_service.py   # Gemini analysis / ask / key verify
+│   └── llm_service.py      # LLM analysis / ask / key verify
 ├── utils/                  # Validators, API response helpers
 ├── frontend/               # Vite + React UI
 ├── run.py                  # Entry point
@@ -31,7 +31,7 @@ Murmur/
 
 - **Python 3.11+**
 - **FFmpeg** (required by Whisper for decoding many audio formats)
-- **Google Gemini API key** ([Google AI Studio](https://aistudio.google.com/))
+- **An API key** from Google (Gemini), Anthropic (Claude) or OpenAI, plus a model name — entered in the app's Settings
 
 ### Backend
 
@@ -43,7 +43,7 @@ python -m venv venv
 source venv/bin/activate
 pip install -r requirements.txt
 cp .env.example .env
-# Edit .env — set GEMINI_API_KEY at minimum
+# Edit .env — optionally set LLM_API_KEY and LLM_MODEL (otherwise users enter them in Settings)
 python run.py
 ```
 
@@ -65,8 +65,9 @@ Copy `.env.example` to `.env`. Common options:
 
 | Variable | Description | Default |
 |----------|-------------|---------|
-| `GEMINI_API_KEY` | Server-side Gemini key. Optional if the client sends `X-Gemini-Api-Key` | — |
-| `GEMINI_HTTP_TIMEOUT` | Per-request Gemini HTTP timeout (seconds) | `120` |
+| `LLM_API_KEY` | Server-side key. Optional if the client sends `X-Llm-Api-Key` | — |
+| `LLM_MODEL` | Server-side default model (e.g. `claude-sonnet-5-5`). Optional if the client sends `X-Llm-Model` | — |
+| `LLM_HTTP_TIMEOUT` | Per-request LLM HTTP timeout (seconds) | `120` |
 | `WHISPER_MODEL_NAME` | Whisper checkpoint (`tiny`, `base`, `small.en`, etc.) | `small.en` |
 | `MAX_TEXT_LENGTH` | Max characters for text analysis / ask | `50000` |
 | `MAX_JOURNAL_CONTEXT_LENGTH` | Max chars for journal context in ask | `120000` |
@@ -86,9 +87,9 @@ See `.env.example` for optional API gate (`MURMUR_API_SECRET`), upload limits, a
 | `POST` | `/api/v1/journal/analyze` | Multipart audio → transcript + Gemini analysis |
 | `POST` | `/api/v1/journal/analyze-text` | JSON `{ "text": "..." }` → analysis (no audio) |
 | `POST` | `/api/v1/journal/ask` | Question over journal context (JSON) |
-| `POST` | `/api/v1/journal/verify-gemini-key` | Verify Gemini key (header `X-Gemini-Api-Key`) |
+| `POST` | `/api/v1/journal/verify-key` | Verify key + model (headers `X-Llm-Api-Key`, `X-Llm-Model`) |
 
-For `analyze-text`, `analyze`, `ask`, and `verify-gemini-key`, the client may send **`X-Gemini-Api-Key`** when no server `GEMINI_API_KEY` is configured.
+For `analyze-text`, `analyze`, `ask`, and `verify-key`, the client may send **`X-Llm-Api-Key`** and **`X-Llm-Model`** when no server `LLM_API_KEY`/`LLM_MODEL` is configured.
 
 ### Example: analysis shape (truncated)
 
@@ -122,17 +123,17 @@ For `analyze-text`, `analyze`, `ask`, and `verify-gemini-key`, the client may se
 curl http://127.0.0.1:5001/api/v1/health
 
 curl -X POST http://127.0.0.1:5001/api/v1/journal/analyze \
-  -H "X-Gemini-Api-Key: YOUR_KEY" \
+  -H "X-Llm-Api-Key: YOUR_KEY" \
   -F "audio=@recording.wav"
 ```
 
 ## Troubleshooting
 
 **Gemini “not initialized” or 401 on analysis**  
-Set `GEMINI_API_KEY` in `.env` or send a valid `X-Gemini-Api-Key` from the client.
+Set `LLM_API_KEY` in `.env` or send a valid `X-Llm-Api-Key` from the client.
 
 **Analysis never finishes or times out**  
-The server enforces **`GEMINI_HTTP_TIMEOUT`** (default 120s) on each Gemini call. Slow networks, VPNs, or firewalls blocking Google APIs can cause timeouts—increase the value (e.g. `240`) or fix connectivity.
+The server enforces **`LLM_HTTP_TIMEOUT`** (default 120s) on each Gemini call. Slow networks, VPNs, or firewalls blocking Google APIs can cause timeouts—increase the value (e.g. `240`) or fix connectivity.
 
 **Harmless stderr lines (ALTS / absl)**  
 Messages such as `ALTS creds ignored` or absl logging warnings come from Google’s gRPC stack when not running on Google Cloud. They are not Murmur errors.

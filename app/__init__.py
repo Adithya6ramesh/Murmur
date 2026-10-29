@@ -41,7 +41,8 @@ def create_app(config_name=None):
         methods=["GET", "POST", "OPTIONS"],
         allow_headers=[
             "Content-Type",
-            "X-Gemini-Api-Key",
+            "X-Llm-Api-Key",
+            "X-Llm-Model",
             "Authorization",
             "X-Murmur-Api-Key",
         ],

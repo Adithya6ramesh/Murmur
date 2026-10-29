@@ -59,7 +59,7 @@ export default function AppShell({
                 <div className="relative flex gap-2">
                   <p className="flex-1 font-body text-[11px] leading-relaxed text-on-surface-variant">
                     Add your <span className="text-on-surface">name</span> and{' '}
-                    <span className="text-on-surface">Gemini key</span> in Settings—so Murmur can greet you
+                    <span className="text-on-surface">API key</span> in Settings—so Murmur can greet you
                     properly.
                   </p>
                   <button
