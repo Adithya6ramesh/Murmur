@@ -9,7 +9,7 @@ from werkzeug.exceptions import RequestEntityTooLarge
 from utils.validators import validate_audio_upload
 from utils.responses import success_response, error_response, validation_error_response
 from services.audio_service import audio_service
-from services.gemini_service import gemini_service
+from services.llm_service import llm_service
 from .security import enforce_murmur_api_guard
 
 logger = logging.getLogger(__name__)
@@ -35,24 +35,24 @@ def _context_limit():
 @api_bp.route('/health', methods=['GET'])
 def health_check():
     try:
-        gemini_healthy, gemini_status = gemini_service.health_check()
+        llm_healthy, llm_status = llm_service.health_check()
 
         if current_app.debug:
-            gemini_details = gemini_status
+            llm_details = llm_status
         else:
-            gemini_details = "ok" if gemini_healthy else "unavailable"
+            llm_details = "ok" if llm_healthy else "unavailable"
 
         health_data = {
-            "status": "healthy" if gemini_healthy else "degraded",
+            "status": "healthy" if llm_healthy else "degraded",
             "services": {
                 "api": "healthy",
-                "gemini": "healthy" if gemini_healthy else "unhealthy",
-                "gemini_details": gemini_details,
+                "llm": "healthy" if llm_healthy else "unhealthy",
+                "llm_details": llm_details,
             },
             "version": "1.0.0"
         }
 
-        status_code = 200 if gemini_healthy else 503
+        status_code = 200 if llm_healthy else 503
         return success_response(health_data, "Health check completed", status_code)
 
     except Exception as e:
@@ -98,15 +98,16 @@ def analyze_journal():
             transcript = transcription_result
             logger.info("Transcription completed")
 
-            request_api_key = request.headers.get('X-Gemini-Api-Key', '').strip()
-            logger.info("Starting Gemini analysis")
-            analysis_success, analysis_result, analysis_err_code = gemini_service.analyze_journal_entry(
-                transcript, request_api_key=request_api_key
+            request_api_key = request.headers.get('X-Llm-Api-Key', '').strip()
+            request_model = request.headers.get('X-Llm-Model', '').strip()
+            logger.info("Starting Analysis")
+            analysis_success, analysis_result, analysis_err_code = llm_service.analyze_journal_entry(
+                transcript, request_api_key=request_api_key, request_model=request_model
             )
 
             if not analysis_success:
-                logger.error("Gemini analysis failed: %s", analysis_result)
-                status = 401 if analysis_err_code == "INVALID_GEMINI_API_KEY" else 500
+                logger.error("Analysis failed: %s", analysis_result)
+                status = 401 if analysis_err_code == "INVALID_API_KEY" else 500
                 safe_msg = analysis_result if analysis_err_code else "Analysis failed"
                 return error_response(safe_msg, status, analysis_err_code or "ANALYSIS_ERROR")
 
@@ -152,15 +153,16 @@ def analyze_text():
                 {"text": f"Text exceeds maximum length of {limit:,} characters"}
             )
 
-        request_api_key = request.headers.get('X-Gemini-Api-Key', '').strip()
+        request_api_key = request.headers.get('X-Llm-Api-Key', '').strip()
+        request_model = request.headers.get('X-Llm-Model', '').strip()
         logger.info("Starting text analysis (len=%d)", len(text))
-        analysis_success, analysis_result, analysis_err_code = gemini_service.analyze_journal_entry(
-            text, request_api_key=request_api_key
+        analysis_success, analysis_result, analysis_err_code = llm_service.analyze_journal_entry(
+            text, request_api_key=request_api_key, request_model=request_model
         )
 
         if not analysis_success:
-            logger.error("Gemini analysis failed: %s", analysis_result)
-            status = 401 if analysis_err_code == "INVALID_GEMINI_API_KEY" else 422
+            logger.error("Analysis failed: %s", analysis_result)
+            status = 401 if analysis_err_code == "INVALID_API_KEY" else 422
             safe_msg = analysis_result if analysis_err_code else "Analysis failed"
             return error_response(safe_msg, status, analysis_err_code or "ANALYSIS_ERROR")
 
@@ -207,12 +209,13 @@ def ask_journal():
                 {"journal_context": f"Context exceeds {ctx_limit:,} character limit"}
             )
 
-        request_api_key = request.headers.get('X-Gemini-Api-Key', '').strip()
-        ok, result, ask_err_code = gemini_service.ask_journal_question(
-            question, journal_context, request_api_key=request_api_key
+        request_api_key = request.headers.get('X-Llm-Api-Key', '').strip()
+        request_model = request.headers.get('X-Llm-Model', '').strip()
+        ok, result, ask_err_code = llm_service.ask_journal_question(
+            question, journal_context, request_api_key=request_api_key, request_model=request_model
         )
         if not ok:
-            status = 401 if ask_err_code == "INVALID_GEMINI_API_KEY" else 422
+            status = 401 if ask_err_code == "INVALID_API_KEY" else 422
             safe_msg = result if ask_err_code else "Could not process your question"
             return error_response(safe_msg, status, ask_err_code or "ASK_ERROR")
 
@@ -274,17 +277,18 @@ def transcribe_only():
         return _safe_error(f"transcribe_only: {e}")
 
 
-@api_bp.route('/journal/verify-gemini-key', methods=['POST'])
-def verify_gemini_key():
+@api_bp.route('/journal/verify-key', methods=['POST'])
+def verify_key():
     try:
-        request_api_key = request.headers.get('X-Gemini-Api-Key', '').strip()
-        ok, msg, err_code = gemini_service.verify_gemini_api_key(request_api_key)
+        request_api_key = request.headers.get('X-Llm-Api-Key', '').strip()
+        request_model = request.headers.get('X-Llm-Model', '').strip()
+        ok, msg, err_code = llm_service.verify_api_key(request_api_key, request_model)
         if not ok:
-            status = 401 if err_code == 'INVALID_GEMINI_API_KEY' else 422
+            status = 401 if err_code == 'INVALID_API_KEY' else 422
             return error_response(msg, status, err_code or 'VERIFY_ERROR')
         return success_response(None, 'API key is valid')
     except Exception as e:
-        return _safe_error(f"verify_gemini_key: {e}", user_msg="Verification failed")
+        return _safe_error(f"verify_key: {e}", user_msg="Verification failed")
 
 
 @api_bp.route('/info', methods=['GET'])
@@ -299,7 +303,7 @@ def api_info():
             "/api/v1/journal/analyze-text": "Text analysis only (POST)",
             "/api/v1/journal/transcript-only": "Audio transcription only (POST)",
             "/api/v1/journal/ask": "Ask a question over journal context (POST JSON)",
-            "/api/v1/journal/verify-gemini-key": "Verify Gemini API key (POST, header X-Gemini-Api-Key)",
+            "/api/v1/journal/verify-key": "Verify API key + model (POST, headers X-Llm-Api-Key, X-Llm-Model)",
             "/api/v1/info": "API information",
         },
         "supported_audio_formats": ["wav", "mp3", "flac", "m4a", "ogg", "webm"],

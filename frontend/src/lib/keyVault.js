@@ -1,5 +1,5 @@
 /**
- * Stores the Gemini API key encrypted at rest (AES-GCM).
+ * Stores the API key encrypted at rest (AES-GCM).
  * The key is never written to localStorage in plaintext and is not exposed via loadUserSettings().
  * A device-bound secret protects the ciphertext (same threat model as any local-only secret).
  */
@@ -35,7 +35,7 @@ async function getDeviceAesKey() {
  * @param {string} plaintext
  * @returns {Promise<string>} v1:ivB64:cipherB64 (single string, no secrets in structure alone)
  */
-export async function encryptGeminiKeyPlaintext(plaintext) {
+export async function encryptApiKeyPlaintext(plaintext) {
   const key = await getDeviceAesKey();
   const iv = crypto.getRandomValues(new Uint8Array(12));
   const enc = new TextEncoder().encode(plaintext);
@@ -47,7 +47,7 @@ export async function encryptGeminiKeyPlaintext(plaintext) {
  * @param {string} blob
  * @returns {Promise<string>}
  */
-export async function decryptGeminiKeyBlob(blob) {
+export async function decryptApiKeyBlob(blob) {
   if (!blob || typeof blob !== 'string') return '';
   const parts = blob.split(':');
   if (parts.length !== 3 || parts[0] !== 'v1') return '';

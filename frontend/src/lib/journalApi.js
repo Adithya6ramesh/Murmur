@@ -36,9 +36,9 @@ async function readApiError(response) {
 }
 
 function throwFromFailedResponse(response, { message, errorCode }, fallbackLabel) {
-  if (errorCode === 'INVALID_GEMINI_API_KEY') {
+  if (errorCode === 'INVALID_API_KEY') {
     throw new Error(
-      message || 'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+      message || 'Wrong API key. Check that you copied the full key from your provider and try again.'
     );
   }
   throw new Error(message || `${fallbackLabel} (${response.status})`);
@@ -82,10 +82,13 @@ export async function transcribeAudio(audioBlob) {
   return result.data.transcript;
 }
 
-export async function analyzeText(text, geminiApiKey) {
+export async function analyzeText(text, apiKey, model) {
   const headers = mergeApiHeaders({ 'Content-Type': 'application/json' });
-  if (geminiApiKey?.trim()) {
-    headers['X-Gemini-Api-Key'] = geminiApiKey.trim();
+  if (apiKey?.trim()) {
+    headers['X-Llm-Api-Key'] = apiKey.trim();
+  }
+  if (model?.trim()) {
+    headers['X-Llm-Model'] = model.trim();
   }
   const response = await fetchBackend(`${API_BASE}/journal/analyze-text`, {
     method: 'POST',
@@ -100,10 +103,10 @@ export async function analyzeText(text, geminiApiKey) {
 
   const result = await response.json();
   if (!result.success) {
-    if (result.error_code === 'INVALID_GEMINI_API_KEY') {
+    if (result.error_code === 'INVALID_API_KEY') {
       throw new Error(
         result.message ||
-          'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+          'Wrong API key. Check that you copied the full key from your provider and try again.'
       );
     }
     throw new Error(result.message || 'Analysis failed');
@@ -111,10 +114,13 @@ export async function analyzeText(text, geminiApiKey) {
   return result.data.analysis;
 }
 
-export async function askJournalQuestion(question, journalContext, geminiApiKey) {
+export async function askJournalQuestion(question, journalContext, apiKey, model) {
   const headers = mergeApiHeaders({ 'Content-Type': 'application/json' });
-  if (geminiApiKey?.trim()) {
-    headers['X-Gemini-Api-Key'] = geminiApiKey.trim();
+  if (apiKey?.trim()) {
+    headers['X-Llm-Api-Key'] = apiKey.trim();
+  }
+  if (model?.trim()) {
+    headers['X-Llm-Model'] = model.trim();
   }
   const response = await fetchBackend(`${API_BASE}/journal/ask`, {
     method: 'POST',
@@ -133,10 +139,10 @@ export async function askJournalQuestion(question, journalContext, geminiApiKey)
 
   const result = await response.json();
   if (!result.success) {
-    if (result.error_code === 'INVALID_GEMINI_API_KEY') {
+    if (result.error_code === 'INVALID_API_KEY') {
       throw new Error(
         result.message ||
-          'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+          'Wrong API key. Check that you copied the full key from your provider and try again.'
       );
     }
     throw new Error(result.message || 'Could not get an answer');
@@ -145,14 +151,17 @@ export async function askJournalQuestion(question, journalContext, geminiApiKey)
 }
 
 /**
- * Calls the backend to verify the key works before saving locally.
+ * Calls the backend to verify the key + model work before saving locally.
  */
-export async function verifyGeminiApiKey(geminiApiKey) {
+export async function verifyApiKey(apiKey, model) {
   const headers = mergeApiHeaders({ 'Content-Type': 'application/json' });
-  if (geminiApiKey?.trim()) {
-    headers['X-Gemini-Api-Key'] = geminiApiKey.trim();
+  if (apiKey?.trim()) {
+    headers['X-Llm-Api-Key'] = apiKey.trim();
   }
-  const response = await fetchBackend(`${API_BASE}/journal/verify-gemini-key`, {
+  if (model?.trim()) {
+    headers['X-Llm-Model'] = model.trim();
+  }
+  const response = await fetchBackend(`${API_BASE}/journal/verify-key`, {
     method: 'POST',
     headers,
     body: '{}',
@@ -164,10 +173,10 @@ export async function verifyGeminiApiKey(geminiApiKey) {
   }
   const result = await response.json();
   if (!result.success) {
-    if (result.error_code === 'INVALID_GEMINI_API_KEY') {
+    if (result.error_code === 'INVALID_API_KEY') {
       throw new Error(
         result.message ||
-          'Wrong API key. Check that you copied the full key from Google AI Studio and try again.'
+          'Wrong API key. Check that you copied the full key from your provider and try again.'
       );
     }
     throw new Error(result.message || 'Could not verify API key');
